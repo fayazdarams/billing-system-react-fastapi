@@ -1,0 +1,101 @@
+/* Mobile-first base: one column, full width, 62px field box. */
+.field-wrap {
+  margin-bottom: 0.85rem;
+  text-align: left;
+}
+
+.field {
+  display: block;
+  box-sizing: border-box;
+  min-height: 16px;
+  padding: 4px 12px 8px 12px;
+  border: 1px solid var(--border, #ddd);
+  border-radius: 6px;
+  background: var(--surface, #fff);
+  cursor: text;
+}
+
+.field:focus-within {
+  border-color: var(--primary, #075fe4);
+  box-shadow: 0 0 0 0.1rem rgba(13, 110, 253, 0.25);
+}
+
+.field.field-invalid {
+  border-color: var(--danger, #dc3545);
+}
+
+.field-label {
+  display: block;
+  color: var(--text-muted, #6c757d);
+  font-size: 0.9rem;
+  line-height: 1.2;
+}
+
+.field-row {
+  position: relative;
+  display: block;
+}
+
+.field-input {
+  width: 100%;
+  border: 0;
+  outline: none;
+  background: transparent;
+  color: var(--text, #000);
+  font-size: 1rem;
+  line-height: 1.4;
+  padding: 0;
+}
+
+.field-input:disabled {
+  color: var(--text-muted, #6c757d);
+}
+
+.field-input.field-input-with-eye {
+  padding-right: 36px;
+}
+
+.field-eye {
+  position: absolute;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 32px;
+  height: 32px;
+  border: 0;
+  background: transparent;
+  color: var(--text-muted, #6c757d);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+}
+
+.field-eye:hover {
+  background: var(--surface-muted, #f1f2f5);
+  color: var(--text, #000);
+}
+
+.field-eye svg {
+  width: 15px;
+  height: 15px;
+  color: var(--text-muted, #6c757d);
+}
+
+/* Reserved error slot: always in layout, fixed height, so form height never changes. */
+.field-error {
+  display: block;
+  box-sizing: border-box;
+  min-height: 1.5rem;
+  margin-top: 4px;
+  color: var(--danger, #dc3545);
+  font-size: 0.8rem;
+  line-height: 1.2;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+  visibility: hidden;
+}
+
+.field-error.field-error-visible {
+  visibility: visible;
+}

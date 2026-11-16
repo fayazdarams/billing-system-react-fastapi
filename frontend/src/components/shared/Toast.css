@@ -1,0 +1,107 @@
+/* Mobile-first base: full width minus margins, 16px from top-right. */
+.toast {
+  position: fixed;
+  /* FIX: was top: calc(var(--safe-area-inset-top) + 16px) - that var is undefined,
+     so calc() became invalid and top became 607px (the bug we found).
+     Use env() which is the real safe-area, with 16px fallback. */
+  top: calc(env(safe-area-inset-top, 0px) + 16px);
+  right: 12px;
+  z-index: 300;
+  max-width: 400px;
+  width: calc(100vw - 24px);
+  background: var(--surface, #fff);
+  color: var(--text, #1f2430);
+  border: 1px solid var(--border, #ddd);
+  /* FIX: was border-left: 4px solid var(--toast-border) - --toast-border is never
+     defined anywhere, so border was invalid. Variant classes below set it. */
+  border-left: 4px solid var(--toast-accent, #075fe4);
+  border-radius: 8px;
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.18);
+  padding: 0.85rem 2.5rem 0.85rem 1rem;
+  display: flex;
+  align-items: flex-start;
+  gap: 0.6rem;
+}
+
+/* FIX: these classes were used in Toast.tsx (toast-success / error / info)
+   but never defined in CSS, so variant had no visual effect. Now they do. */
+.toast-success {
+  --toast-accent: #28a745;
+}
+
+.toast-error {
+  --toast-accent: #dc3545;
+}
+
+.toast-info {
+  --toast-accent: #075fe4;
+}
+
+.toast-success .toast-symbol {
+  background: #e6f4ea;
+  color: #1e7e34;
+}
+
+.toast-error .toast-symbol {
+  background: #fdecea;
+  color: #c82333;
+}
+
+.toast-info .toast-symbol {
+  background: #e7f0fe;
+  color: #075fe4;
+}
+
+.toast-symbol {
+  flex-shrink: 0;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: var(--surface-muted, #f1f2f5);
+  color: var(--text, #1f2430);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 0.9rem;
+  line-height: 1;
+}
+
+.toast-message {
+  font-size: 0.92rem;
+  line-height: 1.45;
+  padding-top: 0.15rem;
+  overflow-wrap: anywhere;
+}
+
+.toast-close {
+  position: absolute;
+  top: 6px;
+  right: 8px;
+  width: 28px;
+  height: 28px;
+  border: 0;
+  background: transparent;
+  color: var(--text-muted, #6c757d);
+  font-size: 1.1rem;
+  line-height: 1;
+  border-radius: 4px;
+}
+
+.toast-close:hover {
+  background: var(--surface-muted, #f1f2f5);
+  color: var(--text, #1f2430);
+}
+
+.toast-close:focus-visible {
+  outline: 2px solid var(--primary, #075fe4);
+  outline-offset: 1px;
+}
+
+
+@media (min-width: 481px) {
+  .toast {
+    right: 16px;
+    width: calc(100vw - 32px);
+  }
+}
