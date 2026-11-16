@@ -1,5 +1,6 @@
 import { useEffect } from "react";
 import type { ToastItem } from "../../types";
+import { playErrorSound } from "../../lib/sound";
 import "./Toast.css";
 
 export interface ToastProps {
@@ -10,6 +11,10 @@ export interface ToastProps {
 export default function Toast({ toast, onClose }: ToastProps) {
   useEffect(() => {
     if (!toast) return;
+    // Play sound only for error — success / info stay silent
+    if (toast.variant === "error") {
+      playErrorSound();
+    }
     const timer = setTimeout(() => onClose(), 4000);
     return () => clearTimeout(timer);
   }, [toast, onClose]);
