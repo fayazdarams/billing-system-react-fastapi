@@ -158,7 +158,7 @@ export default function RegisterModal({ open, onClose, onToast }: RegisterModalP
         throw new Error(message);
       }
 
-      onToast("User created Successfully", "success");
+      onToast(data.message, "success");
       resetForm();
       onClose();
     } catch (error) {

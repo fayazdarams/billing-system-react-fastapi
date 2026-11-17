@@ -89,8 +89,8 @@ export default function ForgotPasswordModal({ open, onClose, onToast, initialUse
       }
       setLoading(true);
       try {
-        await postJson("/forgot-password", { username: username.trim() });
-        onToast("OTP sent to your registered email", "success");
+        const data = await postJson("/forgot-password", { username: username.trim() });
+        onToast(data.message, "success");
         setStep(2);
       } catch (e) {
         onToast(getApiErrorMessage(e), "error");
@@ -140,14 +140,14 @@ export default function ForgotPasswordModal({ open, onClose, onToast, initialUse
     }
     setLoading(true);
     try {
-      await postJson("/reset-password", {
+      const data = await postJson("/reset-password", {
         username: username.trim(),
         code,
         newPassword,
         confirmPassword: confirmNewPassword,
       });
       // FIX: success in Toast, not in form. No forgot-success, no 1s timer.
-      onToast("Password reset successfully", "success");
+      onToast(data.message, "success");
       resetForm();
       onClose();
     } catch (e) {

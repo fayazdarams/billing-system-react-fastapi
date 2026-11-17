@@ -119,11 +119,11 @@ def _get_user(conn, username: str):
 
 
 def _get_valid_reset(conn, user_id: int, code: str):
-    """Find latest unused, unexpired reset row and check code hash."""
+    """Find latest unused, unexpired reset row (Handles Race condition also) and check code hash."""
     row = conn.execute(
         text("""
             SELECT id, code_hash FROM password_reset
-            WHERE user_id = :uid AND used = false AND expires_at > now()
+            WHERE user_id = :uid AND status = 'pending' AND expires_at > now()
             ORDER BY created_at DESC LIMIT 1
         """),
         {"uid": user_id},
@@ -147,20 +147,32 @@ def forgot_password(data: ForgotPasswordIn):
             user_id, user_email = _get_user(conn, data.username)
             if not user_id:
                 raise HTTPException(400, "Username not found")
-
-            # Invalidate any previous unused codes for this user
+            # 1. Mark old pending OTPs that timed out as 'expired'
             conn.execute(
-                text("UPDATE password_reset SET used = true WHERE user_id = :uid AND used = false"),
+                text("""
+                    UPDATE password_reset SET status = 'expired'
+                    WHERE user_id = :uid AND status = 'pending' AND expires_at <= now()
+                """),
                 {"uid": user_id},
             )
 
-            # Store only hash, never plain OTP
+            # 2. Mark remaining pending OTPs (still within 10 min) as 'discarded'
+            
             conn.execute(
                 text("""
-                    INSERT INTO password_reset (user_id, code_hash, expires_at, used)
-                    VALUES (:uid, :code_hash, now() + interval '10 minutes', false)
+                    UPDATE password_reset SET status = 'discarded'
+                    WHERE user_id = :uid AND status = 'pending'
                 """),
-                {"uid": user_id, "code_hash": hash_password(otp)},
+                {"uid": user_id},
+            )
+
+            # 3. Insert new OTP as 'pending'
+            conn.execute(
+                text("""
+                    INSERT INTO password_reset (user_id, code_hash, expires_at, status)
+                    VALUES (:uid, :code_hash, now() + interval '10 minutes', 'pending')
+                """),
+                {"uid": user_id, "code_hash": hash_password(otp)}
             )
     except OperationalError as e:
         error_text = str(e).lower()
@@ -189,6 +201,16 @@ def verify_code(data: VerifyCodeIn):
             reset_id = _get_valid_reset(conn, user_id, data.code)
             if not reset_id:
                 raise HTTPException(400, "Invalid or expired code")
+           
+            # Only latest stays pending, rest become discarded 
+            # Race condition Two valid OTPS of a user. _get_valid_reset gets latest one. Discard the other(s) 
+            conn.execute(
+                text("""
+                    UPDATE password_reset SET status = 'discarded'
+                    WHERE user_id = :uid AND status = 'pending' AND id != :rid
+                """),
+                {"uid": user_id, "rid": reset_id},
+            )
     except OperationalError as e:
         error_text = str(e).lower()
         if "password authentication failed" in error_text:
@@ -197,7 +219,6 @@ def verify_code(data: VerifyCodeIn):
         print(f"DB UNAVAILABLE: {e}")
         raise HTTPException(503, "Database is unavailable. Please try again later.")
 
-    # Do NOT mark used=true here — only after password is actually changed in reset-password
     return {"message": "Code verified"}
 
 
@@ -223,7 +244,7 @@ def reset_password(data: ResetPasswordIn):
             )
             # Mark code as used — one-time use
             conn.execute(
-                text("UPDATE password_reset SET used = true WHERE id = :rid"),
+                text("UPDATE password_reset SET status = 'used' WHERE id = :rid"),
                 {"rid": reset_id},
             )
             # Option B — kill all sessions, force re-login (same as Change Password)
