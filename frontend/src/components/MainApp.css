@@ -1,4 +1,4 @@
-/* Modern menu: narrow 180px, flyout submenus, rounded active pill. Mobile-First. */
+/* Modern ERP: light sidebar, icons, collapsible, breadcrumb + search. Mobile-First. */
 .app {
     display: flex;
     flex-direction: column;
@@ -6,21 +6,26 @@
     width: 100%;
     margin: 0;
     align-self: stretch;
-    background: #eef1f6
+    background: #f8fafc;
+    font-family: Inter, system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+    color: #0f172a
 }
 
 .app-header {
     display: flex;
     align-items: center;
-    gap: 10px;
-    padding: 10px 12px;
-    background: #3d40a9;
-    color: #fff;
+    gap: 12px;
+    padding: 12px 16px;
+    background: #fff;
+    color: #0f172a;
     width: 100%;
-    box-sizing: border-box
+    box-sizing: border-box;
+    border-bottom: 1px solid #e2e8f0
 }
 
 .store {
+    font-weight: 700;
+    letter-spacing: -.02em;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis
@@ -28,19 +33,27 @@
 
 .user {
     margin-left: auto;
-    color: #dfe3ff;
+    color: #64748b;
     font-size: .9em
 }
 
 .icon-btn,
 .logout-btn {
-    background: rgba(255, 255, 255, .15);
-    color: #fff;
-    border: 1px solid rgba(255, 255, 255, .3);
-    border-radius: 6px;
+    background: #f1f5f9;
+    color: #0f172a;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
     padding: 6px 10px;
     cursor: pointer;
-    flex-shrink: 0
+    flex-shrink: 0;
+    display: flex;
+    gap: 6px;
+    align-items: center
+}
+
+.logout-btn:hover {
+    background: #fee2e2;
+    border-color: #fecaca
 }
 
 .app-body {
@@ -50,28 +63,36 @@
     width: 100%;
     margin: 0;
     padding: 0;
-    gap: 10px
+    gap: 0
 }
 
 .menu {
     position: fixed;
-    top: 52px;
+    top: 57px;
     left: 0;
     bottom: 0;
     width: 180px;
     margin: 0;
-    padding: 8px 6px;
-    background: #2b2e8a;
-    color: #fff;
+    padding: 12px 8px 48px;
+    background: #fff;
+    color: #334155;
     transform: translateX(-100%);
-    transition: transform .2s;
+    transition: width .2s, transform .2s;
     z-index: 10;
     overflow: visible;
-    box-sizing: border-box
+    box-sizing: border-box;
+    border-right: 1px solid #e2e8f0;
+    display: flex;
+    flex-direction: column
 }
 
 .menu.open {
     transform: translateX(0)
+}
+
+.menu nav {
+    flex: 1;
+    overflow: visible
 }
 
 .menu-list,
@@ -82,66 +103,94 @@
 }
 
 .menu-li {
-    position: relative
+    position: relative;
+    overflow: visible
 }
 
 .menu-item {
+    position: relative;
     display: flex;
     justify-content: space-between;
+    align-items: center;
     width: 100%;
     text-align: left;
     background: transparent;
     border: 0;
-    color: #e8eaff;
+    color: #475569;
     padding: 9px 10px;
     cursor: pointer;
     box-sizing: border-box;
     border-radius: 8px;
-    font-size: .95em
+    font-size: .92em;
+    font-weight: 500;
+    letter-spacing: -.01em
 }
 
 .menu-item:hover {
-    background: rgba(255, 255, 255, .12)
-}
-
-/* Ancestor stays highlighted while you are in its submenu */
-.menu-li:hover>.menu-item:not(.active) {
-    background: rgba(255, 255, 255, .18);
-    color: #fff
-}
-
-.menu-li:hover>.menu-item.active {
-    background: #fff;
-    color: #2b2e8a
+    background: #f1f5f9;
+    color: #0f172a
 }
 
 .menu-item.active {
-    background: #fff;
-    color: #2b2e8a;
+    background: #eef2ff;
+    color: #4338ca;
     font-weight: 600;
-    box-shadow: 0 1px 4px rgba(0, 0, 0, .15)
+    box-shadow: inset 0 0 0 1px #e0e7ff
+}
+
+.menu-li:hover>.menu-item:not(.active) {
+    background: #f8fafc;
+    color: #0f172a
+}
+
+.menu-li:hover>.menu-item.active {
+    background: #eef2ff;
+    color: #4338ca
+}
+
+.menu-item-left {
+    position: relative;
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    min-width: 0
+}
+
+.menu-icon {
+    width: 18px;
+    text-align: center;
+    color: #64748b;
+    font-size: .9em
+}
+
+.menu-item.active .menu-icon {
+    color: #4338ca
 }
 
 .arrow {
-    opacity: .7;
-    font-size: .8em
+    opacity: .5;
+    font-size: .75em
 }
 
-/* Flyout: submenu floats to the right, menu does NOT extend down. Menu must stay overflow:visible or this gets clipped */
 .submenu {
     position: absolute;
     left: calc(100% + 6px);
     top: 0;
     min-width: 180px;
-    background: #2b2e8a;
-    border-radius: 10px;
+    background: #fff;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
     padding: 6px;
-    box-shadow: 0 8px 24px rgba(0, 0, 0, .25);
+    box-shadow: 0 12px 32px rgba(15, 23, 42, .12);
     z-index: 20;
     display: none
 }
 
-/* Desktop: hover opens flyout, no click needed */
+.submenu .submenu {
+    left: calc(100% + 6px);
+    top: 0
+}
+
 @media(min-width:768px) {
 
     .menu-li:hover>.submenu,
@@ -159,35 +208,175 @@
     }
 }
 
-.submenu .submenu {
-    left: calc(100% + 6px);
-    top: 0
+.menu.collapsed {
+    width: 56px;
+}
+
+.menu.collapsed .menu-label {
+    display: none
+}
+
+.menu.collapsed .menu-item {
+    justify-content: center;
+    padding: 9px 6px
+}
+
+.menu.collapsed .menu-item-left {
+    justify-content: center
+}
+
+.menu.collapsed .submenu {
+    min-width: 0;
+    width: 56px;
+    padding: 6px 4px
+}
+
+.menu.collapsed .submenu .menu-item {
+    justify-content: center;
+    padding: 9px 6px
+}
+
+.menu.collapsed .submenu .menu-item-left {
+    justify-content: center
+}
+
+.collapse-btn {
+    position: absolute;
+    left: 8px;
+    right: 8px;
+    bottom: 8px;
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    justify-content: center;
+    padding: 8px;
+    border: none;
+    background-color: transparent;
+    cursor: pointer;
+    color: #475569;
+    font-size: .85em
+}
+
+.collapse-btn:hover {
+    color: #4338ca
 }
 
 .backdrop {
     position: fixed;
-    inset: 52px 0 0 0;
-    background: rgba(0, 0, 0, .35);
+    inset: 57px 0 0 0;
+    background: rgba(15, 23, 42, .35);
     z-index: 5
 }
 
 .content {
     flex: 1;
     min-width: 0;
-    padding: 12px;
+    padding: 16px;
     overflow-y: auto;
     box-sizing: border-box;
-    background: #eef1f6
+    background: #f8fafc
+}
+
+.content-top {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    margin-bottom: 14px
+}
+
+.crumbs {
+    font-size: .9em;
+    color: #64748b
+}
+
+.crumb {
+    background: none;
+    border: 0;
+    color: #64748b;
+    cursor: pointer;
+    padding: 2px 4px;
+    border-radius: 6px
+}
+
+.crumb:hover {
+    color: #4338ca;
+    background: #eef2ff
+}
+
+.crumb.current {
+    color: #0f172a;
+    font-weight: 600;
+    cursor: default
+}
+
+.crumb-sep {
+    opacity: .5
+}
+
+.search-box {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    background: #fff;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    padding: 8px 10px;
+    min-width: 220px;
+    flex: 1;
+    max-width: 360px
+}
+
+.search-box:focus-within {
+    border-color: #4338ca;
+    box-shadow: 0 0 0 3px #eef2ff
+}
+
+.search-icon {
+    color: #94a3b8;
+    font-size: .85em
+}
+
+.search-box input {
+    border: 0;
+    outline: 0;
+    width: 100%;
+    font: inherit;
+    font-size: .92em;
+    background: transparent
 }
 
 .placeholder {
     background: #fff;
-    border-radius: 10px;
-    padding: 16px;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, .06)
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    padding: 20px;
+    box-shadow: 0 1px 2px rgba(15, 23, 42, .05)
 }
 
-/* Mobile: flyout would go off-screen, so submenu expands inline, no horizontal scrollbar */
+/* Tooltip OVER the icon, not to the side - so it never looks like a submenu */
+.tooltip {
+    display: none;
+    position: absolute;
+    right: calc(100% + 2px);
+    top: 50%;
+    translate: 0 -50%;
+    transform: rotate(180deg);
+    writing-mode: vertical-rl;
+    color: #334155;
+    font-size: .75em;
+    font-weight: 500;
+    white-space: nowrap;
+    z-index: 50;
+    pointer-events: none;
+
+}
+
+.menu.collapsed .menu-li:hover>.menu-item>.menu-item-left>.tooltip {
+    display: block
+}
+
 @media(max-width:767px) {
     .app-body {
         overflow-x: hidden
@@ -197,12 +386,25 @@
         width: 230px
     }
 
+    .menu.collapsed {
+        width: 230px
+    }
+
+    .menu.collapsed .menu-label {
+        display: inline
+    }
+
+    .menu.collapsed .tooltip {
+        display: none
+    }
+
     .submenu {
         position: static;
         min-width: 0;
         margin: 4px 0 4px 12px;
         box-shadow: none;
-        background: rgba(255, 255, 255, .08);
+        background: #f8fafc;
+        border: 0;
         border-radius: 8px
     }
 
@@ -213,6 +415,11 @@
     .menu-li.open>.submenu {
         display: block
     }
+
+    .search-box {
+        min-width: 0;
+        max-width: none
+    }
 }
 
 @media(min-width:768px) {
@@ -222,9 +429,15 @@
         display: none
     }
 
-    .menu {
-        position: static;
-        transform: none;
-        flex-shrink: 0
+    @media (min-width: 768px) {
+        .menu {
+            position: relative;
+            /* keeps collapse button inside menu */
+            top: auto;
+            /* cancels top: 57px, so menu does NOT shift down */
+            bottom: auto;
+            transform: none;
+            flex-shrink: 0;
+        }
     }
 }
