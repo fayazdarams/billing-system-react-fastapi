@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useState, useRef } from "react";
-import LoginCard from "./components/credentials/LoginCard";
+import LoginCard, { type LoggedInUser } from "./components/credentials/LoginCard";
+import MainApp from "./components/MainApp";
 import Toast from "./components/shared/Toast";
+import { getJson, postJson } from "./lib/api";
 import type { ToastItem, ToastVariant } from "./types";
 import "./index.css";
 
@@ -10,6 +12,24 @@ export default function App() {
   const [toast, setToast] = useState<ToastItem | null>(null);
   const [isOffline, setIsOffline] = useState(() => !navigator.onLine);
   const lastFocusedRef = useRef<HTMLElement | null>(null);
+  // --- Login / Auto-login (added, rest untouched) ---
+  const [user, setUser] = useState<LoggedInUser | null>(null);
+  const [checking, setChecking] = useState(true);
+
+  // Auto-login: on app load, ask backend if HttpOnly cookie is still valid
+  useEffect(() => {
+    getJson("/me")
+      .then((data) => setUser(data as LoggedInUser))
+      .catch(() => setUser(null))
+      .finally(() => setChecking(false));
+  }, []);
+
+  async function handleLogout() {
+    await postJson("/logout", {}).catch(() => {});
+    // Even if backend is down / postJson throws, we still logout locally
+    // That's why we .catch(() => {}) — logout must clear UI even if DB is down
+    setUser(null);
+  }
 
   useEffect(() => {
     const update = () => {
@@ -63,7 +83,13 @@ export default function App() {
         <h1 className="app-heading">Welcome back</h1>
         <p className="app-subheading">Sign in to manage billing, stores and accounts.</p>
         */}
-        <LoginCard onToast={showToast} />
+        {checking ? (
+          <p>Loading...</p>
+        ) : user ? (
+          <MainApp storeName={user.storeName} username={user.username} onLogout={handleLogout} />
+        ) : (
+          <LoginCard onToast={showToast} onLoginSuccess={setUser} />
+        )}
       </main>
 
       <Toast toast={toast} onClose={closeToast} />

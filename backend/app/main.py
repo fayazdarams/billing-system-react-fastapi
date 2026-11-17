@@ -6,7 +6,7 @@ from app.routers.auth import router as auth_router
 app = FastAPI(title="Billing API")
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],   # for now allow all, after you have frontend URL, we will lock it down
+    allow_origins=["http://localhost:5173"],   # for now allow all, after you have frontend URL, we will lock it down
     allow_origin_regex="https://.*\.vercel\.app",
     allow_credentials=True,
     allow_methods=["*"],

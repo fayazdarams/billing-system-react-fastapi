@@ -3,14 +3,20 @@ import type { FormEvent } from "react";
 import Field from "../shared/Field";
 import RegisterModal from "./RegisterModal";
 import ForgotPasswordModal from "./ForgotPasswordModal";
-import { mockApi } from "../../lib/mockApi";
+import { getJson, postJson, getApiErrorMessage } from "../../lib/api";
 import { handleEnterAsTab } from "../../lib/enterAsTab";
 import { getLoginPasswordError, getLoginUsernameError } from "../../lib/validation";
 import type { ToastVariant } from "../../types";
 import "./LoginCard.css";
 
+export interface LoggedInUser {
+  username: string;
+  storeName: string;
+}
+
 export interface LoginCardProps {
   onToast: (message: string, variant: ToastVariant) => void;
+  onLoginSuccess: (user: LoggedInUser) => void;
 }
 
 interface LoginErrors {
@@ -18,7 +24,7 @@ interface LoginErrors {
   pswd: string;
 }
 
-export default function LoginCard({ onToast }: LoginCardProps) {
+export default function LoginCard({ onToast, onLoginSuccess }: LoginCardProps) {
   const [uname, setUname] = useState("");
   const [pswd, setPswd] = useState("");
   const [errors, setErrors] = useState<LoginErrors>({ uname: "", pswd: "" });
@@ -31,23 +37,20 @@ export default function LoginCard({ onToast }: LoginCardProps) {
     event.preventDefault();
     if (loading) return;
     const form = event.currentTarget;
-    const nextErrors: LoginErrors = {
-      uname: getLoginUsernameError(uname),
-      pswd: getLoginPasswordError(pswd),
-    };
+    const nextErrors: LoginErrors = { uname: getLoginUsernameError(uname), pswd: getLoginPasswordError(pswd) };
     setErrors(nextErrors);
     if (nextErrors.uname || nextErrors.pswd) {
-      // Same pattern as Register: focus first invalid via aria-invalid, no hardcoded refs.
       setTimeout(() => form.querySelector<HTMLElement>('[aria-invalid="true"]')?.focus(), 0);
       return;
     }
     setLoading(true);
     try {
-      await mockApi.login({ uname: uname.trim(), pswd });
+      await postJson("/login", { username: uname.trim(), password: pswd });
+      const me = (await getJson("/me")) as LoggedInUser;
       onToast("Login successful - redirecting...", "success");
+      onLoginSuccess(me);
     } catch (error) {
-      const message = error instanceof Error ? error.message : "Invalid User Name or Password";
-      onToast(message, "error");
+      onToast(getApiErrorMessage(error), "error");
     } finally {
       setLoading(false);
     }
@@ -100,10 +103,9 @@ export default function LoginCard({ onToast }: LoginCardProps) {
         </div>
         <ProgressBar active={loading} />
       </section>
-
       <RegisterModal open={showRegister} onClose={() => setShowRegister(false)} onToast={onToast} />
       <ForgotPasswordModal
-        key={uname} //Re-mount with existing Value Trick
+        key={uname}
         open={showForgot}
         onClose={() => setShowForgot(false)}
         onToast={onToast}

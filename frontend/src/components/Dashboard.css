@@ -1,0 +1,63 @@
+/* Mobile-First: 1 col -> 768px: 2 cols -> 1024px: 3 cols like old Dashboard.php */
+.dash-title {
+    text-align: center;
+    margin: 0 0 12px
+}
+
+.dash-grid {
+    display: grid;
+    gap: 12px
+}
+
+.dash-col {
+    display: flex;
+    flex-direction: column;
+    gap: 12px
+}
+
+.dash-card {
+    text-align: left;
+    background: #fff;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    padding: 12px;
+    cursor: pointer
+}
+
+.dash-card:hover {
+    border-color: #3d40a9
+}
+
+.dash-card-head {
+    display: flex;
+    gap: 12px;
+    justify-content: space-between;
+    font-size: 1em
+}
+
+.dash-table {
+    width: 100%;
+    margin-top: 8px;
+    border-collapse: collapse;
+    color: #444
+}
+
+.dash-table td {
+    padding: 2px 0
+}
+
+.dash-table .num {
+    text-align: right
+}
+
+@media(min-width:768px) {
+    .dash-grid {
+        grid-template-columns: 1fr 1fr
+    }
+}
+
+@media(min-width:1024px) {
+    .dash-grid {
+        grid-template-columns: 1fr 1fr 1fr
+    }
+}

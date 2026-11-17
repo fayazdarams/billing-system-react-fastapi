@@ -1,7 +1,7 @@
 import { useState } from "react";
 import type { FormEvent } from "react";
 import Field from "../shared/Field";
-import { API_URL, getApiErrorMessage } from "../../lib/api";
+import { postJson, getApiErrorMessage } from "../../lib/api";
 import { handleEnterAsTab } from "../../lib/enterAsTab";
 import {
   getConfirmPasswordError,
@@ -12,26 +12,6 @@ import {
 import type { ToastVariant } from "../../types";
 import "../shared/Modal.css";
 import "./ForgotPasswordModal.css";
-
-async function postJson(path: string, body: unknown) {
-  const controller = new AbortController();
-  const timeout = window.setTimeout(() => controller.abort(), 10000);
-  try {
-    const res = await fetch(`${API_URL}${path}`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body),
-      signal: controller.signal,
-    });
-    const data = await res.json().catch(() => ({}));
-    if (!res.ok) {
-      throw new Error((data as { detail?: string }).detail || "Request failed");
-    }
-    return data;
-  } finally {
-    window.clearTimeout(timeout);
-  }
-}
 
 export interface ForgotPasswordModalProps {
   open: boolean;

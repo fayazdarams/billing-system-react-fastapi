@@ -2,7 +2,7 @@ import { useState } from "react";
 import type { FormEvent } from "react";
 import Field from "../shared/Field";
 import { handleEnterAsTab } from "../../lib/enterAsTab";
-import { API_URL, getApiErrorMessage } from "../../lib/api";
+import { postJson, getApiErrorMessage } from "../../lib/api";
 import {
   getConfirmPasswordError,
   getEmailError,
@@ -136,27 +136,15 @@ export default function RegisterModal({ open, onClose, onToast }: RegisterModalP
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 10000); // 10s
     try {
-      const res = await fetch(`${API_URL}/register`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ username, password, confirmPassword, storeName, mobile, whatsapp, email }),
-        signal: controller.signal,
+      const data = await postJson("/register", {
+        username,
+        password,
+        confirmPassword,
+        storeName,
+        mobile,
+        whatsapp,
+        email,
       });
-
-      const data = await res.json().catch(() => ({}));
-
-      if (!res.ok) {
-        // FastAPI returns { detail: "Username already exists" } for our 400,
-        // or { detail: [...] } for validation errors
-        const detail = (data as any)?.detail;
-        const message =
-          typeof detail === "string"
-            ? detail
-            : Array.isArray(detail)
-              ? detail[0]?.msg || "Validation failed"
-              : "Registration failed";
-        throw new Error(message);
-      }
 
       onToast(data.message, "success");
       resetForm();

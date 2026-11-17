@@ -1,7 +1,7 @@
 import os
 import re
 import secrets
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Response, Cookie
 from pydantic import BaseModel, Field, field_validator
 from sqlalchemy import text
 from sqlalchemy.exc import OperationalError, IntegrityError
@@ -261,3 +261,97 @@ def reset_password(data: ResetPasswordIn):
         raise HTTPException(503, "Database is unavailable. Please try again later.")
 
     return {"message": "Password reset successfully"}
+# ---------- Login / Session ----------
+
+class LoginIn(BaseModel):
+    username: str
+    password: str
+
+def _get_login_user(conn, username: str):
+    row = conn.execute(
+        text("SELECT id, password_hash, validupto FROM auth WHERE username = :u"),
+        {"u": username},
+    ).first()
+    if not row:
+        return None, None, None
+    return row[0], row[1], row[2]
+
+@router.post("/login")
+def login(data: LoginIn, response: Response):
+    try:
+        with engine.begin() as conn:
+            user_id, password_hash, validupto = _get_login_user(conn, data.username)
+            if not user_id:
+                raise HTTPException(400, "Invalid username or password")
+            if not check_password(data.password, password_hash):
+                raise HTTPException(400, "Invalid username or password")
+
+            # validupto is DATE — must be >= today, NULL = expired
+            is_valid = conn.execute(
+                text("SELECT :v IS NOT NULL AND :v >= CURRENT_DATE"),
+                {"v": validupto},
+            ).scalar()
+            if not is_valid:
+                raise HTTPException(400, "Your account has expired. Please contact admin.")
+
+            session_value = secrets.token_urlsafe(32)
+            conn.execute(
+                text("""
+                    INSERT INTO session (user_id, session_value, valid_upto)
+                    VALUES (:uid, :sval, now() + interval '12 hours')
+                """),
+                {"uid": user_id, "sval": session_value},
+            )
+    except OperationalError as e:
+        error_text = str(e).lower()
+        if "password authentication failed" in error_text:
+            print(f"DB CONFIG ERROR: {e}")
+            raise HTTPException(500, "Database configuration error. Please contact admin.")
+        print(f"DB UNAVAILABLE: {e}")
+        raise HTTPException(503, "Database is unavailable. Please try again later.")
+
+    response.set_cookie(
+        key="session_id",
+        value=session_value,
+        max_age=12 * 60 * 60,
+        httponly=True,
+        samesite="lax",
+        secure=False,  # False for localhost http, True in production https
+        path="/",
+    )
+    return {"message": "Login successful"}
+
+@router.get("/me")
+def me(session_id: str | None = Cookie(default=None)):
+    if not session_id:
+        raise HTTPException(401, "Not logged in")
+    try:
+        with engine.begin() as conn:
+            row = conn.execute(
+                text("""
+                    SELECT a.username, a.storename FROM session s
+                    JOIN auth a ON a.id = s.user_id
+                    WHERE s.session_value = :sid AND s.valid_upto > now()
+                """),
+                {"sid": session_id},
+            ).first()
+            if not row:
+                raise HTTPException(401, "Session expired. Please login again.")
+            return {"username": row[0], "storeName": row[1]}
+    except OperationalError as e:
+        print(f"DB UNAVAILABLE: {e}")
+        raise HTTPException(503, "Database is unavailable. Please try again later.")
+
+@router.post("/logout")
+def logout(response: Response, session_id: str | None = Cookie(default=None)):
+    if session_id:
+        try:
+            with engine.begin() as conn:
+                conn.execute(
+                    text("DELETE FROM session WHERE session_value = :sid"),
+                    {"sid": session_id},
+                )
+        except OperationalError:
+            pass
+    response.delete_cookie(key="session_id", path="/")
+    return {"message": "Logged out"}
