@@ -29,8 +29,6 @@ import {
   faCalendarDay,
   faCalendarAlt,
   faStar,
-  faChevronLeft,
-  faChevronRight,
 } from "@fortawesome/free-solid-svg-icons";
 import type { IconDefinition } from "@fortawesome/fontawesome-svg-core";
 import Dashboard from "./Dashboard";
@@ -39,8 +37,8 @@ import "./MainApp.css";
 type MenuItem = { id: string; label: string; icon: IconDefinition; children?: MenuItem[] };
 
 const MENU_MIN_WIDTH = 56;
-const LABEL_HIDE_WIDTH = 56; // labels hide only below this, not at 100
-const MENU_FALLBACK_MAX_WIDTH = 180; // used only before measuring, or if measuring fails
+const LABEL_HIDE_WIDTH = 56; // labels hide only at fully collapsed (56px)
+const MENU_FALLBACK_MAX_WIDTH = 320; // used only before measuring, or if measuring fails
 const MENUS: MenuItem[] = [
   { id: "dashboard", label: "Dashboard", icon: faHome },
   { id: "account", label: "Account", icon: faUsers },
@@ -173,7 +171,7 @@ export default function MainApp({
       longest = Math.max(longest, probe.offsetWidth);
     }
     probe.remove();
-    // 18 icon + 10 gap + 20 padding (10+10) + 12 arrow + 2 your extra
+    // 18 icon + 10 gap + 20 button padding (10+10) + 12 arrow + 16 menu padding (8+8)
     const max = Math.ceil(longest + 18 + 10 + 20 + 12 + 16);
     setMenuMaxWidth(max);
     setMenuWidth(max); // load width = same as max drag width, not hardcoded 180
@@ -283,21 +281,6 @@ export default function MainApp({
             <ul className="menu-list">{renderItems(visible)}</ul>
           </nav>
           <div className="resize-handle" onPointerDown={onResizeDown} title="Drag to resize menu" />
-          <button
-            className="collapse-btn"
-            onClick={() => {
-              if (collapsed) {
-                setCollapsed(false);
-                setMenuWidth(maxWidthRef.current);
-              } else {
-                setCollapsed(true);
-                setMenuWidth(56);
-              }
-            }}
-            title={collapsed ? "Expand menu" : "Collapse menu"}>
-            <FontAwesomeIcon icon={collapsed ? faChevronRight : faChevronLeft} />{" "}
-            <span className="menu-label">Collapse</span>
-          </button>
         </aside>
         {menuOpen && <div className="backdrop" onClick={() => setMenuOpen(false)} />}
         <main className="content">

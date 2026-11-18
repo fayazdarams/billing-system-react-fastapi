@@ -73,7 +73,7 @@
     bottom: 0;
     width: 180px;
     margin: 0;
-    padding: 12px 8px 48px;
+    padding: 12px 8px;
     background: #fff;
     color: #334155;
     transform: translateX(-100%);
@@ -112,6 +112,7 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
+    min-height: 38px;
     width: 100%;
     text-align: left;
     background: transparent;
@@ -153,10 +154,15 @@
     display: flex;
     gap: 10px;
     align-items: center;
-    min-width: 0
+    min-width: 0;
+    padding-left: 28px;
 }
 
 .menu-icon {
+    position: absolute;
+    left: 0;
+    top: 50%;
+    translate: 0 -50%;
     width: 18px;
     text-align: center;
     color: #64748b;
@@ -168,13 +174,12 @@
 }
 
 .arrow {
-    opacity: .5;
     font-size: .75em
 }
 
 .submenu {
     position: absolute;
-    left: calc(100%);
+    left: 100%;
     top: 0;
     min-width: 180px;
     background: #fff;
@@ -187,7 +192,7 @@
 }
 
 .submenu .submenu {
-    left: calc(100%);
+    left: 100%;
     top: 0
 }
 
@@ -238,29 +243,6 @@
 
 .menu.collapsed .submenu .menu-item-left {
     justify-content: flex-start
-}
-
-.collapse-btn {
-    position: absolute;
-    left: 8px;
-    right: 8px;
-    bottom: 8px;
-    display: flex;
-    gap: 8px;
-    align-items: center;
-    justify-content: center;
-    background: #f1f5f9;
-    border: 1px solid #e2e8f0;
-    border-radius: 8px;
-    padding: 8px;
-    cursor: pointer;
-    color: #475569;
-    font-size: .85em
-}
-
-.collapse-btn:hover {
-    background: #eef2ff;
-    color: #4338ca
 }
 
 .backdrop {
@@ -452,12 +434,9 @@
     background: transparent
 }
 
-.resize-handle:hover {
-    background: #4338ca
-}
 
 .menu.dragging .resize-handle {
-    background: #4338ca;
+    background: #eef2ff;
     z-index: 30
 }
 
