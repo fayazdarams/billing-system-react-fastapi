@@ -35,7 +35,9 @@ export async function postJson(path: string, body: unknown) {
     });
     const data = await res.json().catch(() => ({}));
     if (!res.ok) {
-      throw new Error(extractDetail(data));
+      const err = new Error(extractDetail(data));
+      (err as any).status = res.status; // ← keep 401, don't dispatch
+      throw err;
     }
     return data;
   } finally {
@@ -53,7 +55,9 @@ export async function getJson(path: string) {
     });
     const data = await res.json().catch(() => ({}));
     if (!res.ok) {
-      throw new Error(extractDetail(data));
+      const err = new Error(extractDetail(data));
+      (err as any).status = res.status; // ← keep 401, don't dispatch
+      throw err;
     }
     return data;
   } finally {

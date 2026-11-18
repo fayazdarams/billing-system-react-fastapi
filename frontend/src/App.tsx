@@ -14,14 +14,12 @@ export default function App() {
   const lastFocusedRef = useRef<HTMLElement | null>(null);
   // --- Login / Auto-login (added, rest untouched) ---
   const [user, setUser] = useState<LoggedInUser | null>(null);
-  const [checking, setChecking] = useState(true);
 
   // Auto-login: on app load, ask backend if HttpOnly cookie is still valid
   useEffect(() => {
     getJson("/me")
       .then((data) => setUser(data as LoggedInUser))
-      .catch(() => setUser(null))
-      .finally(() => setChecking(false));
+      .catch(() => setUser(null));
   }, []);
 
   async function handleLogout() {
@@ -83,9 +81,7 @@ export default function App() {
         <h1 className="app-heading">Welcome back</h1>
         <p className="app-subheading">Sign in to manage billing, stores and accounts.</p>
         */}
-        {checking ? (
-          <p>Loading...</p>
-        ) : user ? (
+        {user ? (
           <MainApp storeName={user.storeName} username={user.username} onLogout={handleLogout} />
         ) : (
           <LoginCard onToast={showToast} onLoginSuccess={setUser} />
