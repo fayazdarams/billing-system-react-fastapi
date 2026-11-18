@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faHome,
@@ -38,6 +38,9 @@ import "./MainApp.css";
 
 type MenuItem = { id: string; label: string; icon: IconDefinition; children?: MenuItem[] };
 
+const MENU_MIN_WIDTH = 56;
+const LABEL_HIDE_WIDTH = 56; // labels hide only below this, not at 100
+const MENU_FALLBACK_MAX_WIDTH = 180; // used only before measuring, or if measuring fails
 const MENUS: MenuItem[] = [
   { id: "dashboard", label: "Dashboard", icon: faHome },
   { id: "account", label: "Account", icon: faUsers },
@@ -147,8 +150,82 @@ export default function MainApp({
   const [open, setOpen] = useState<Record<string, boolean>>({});
   const [menuOpen, setMenuOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
+  const [menuWidth, setMenuWidth] = useState(180);
+  const [menuMaxWidth, setMenuMaxWidth] = useState(MENU_FALLBACK_MAX_WIDTH);
+
+  // Max drag = longest menu label + icon + gap + padding + arrow + 2px
+  useEffect(() => {
+    const labels: string[] = [];
+    const collect = (items: MenuItem[]) => {
+      for (const m of items) {
+        labels.push(m.label);
+        if (m.children) collect(m.children);
+      }
+    };
+    collect(MENUS);
+    const probe = document.createElement("span");
+    probe.style.cssText =
+      "position:absolute;visibility:hidden;white-space:nowrap;font:500 14.72px Inter, system-ui, sans-serif;letter-spacing:-0.01em";
+    document.body.appendChild(probe);
+    let longest = 0;
+    for (const l of labels) {
+      probe.textContent = l;
+      longest = Math.max(longest, probe.offsetWidth);
+    }
+    probe.remove();
+    // 18 icon + 10 gap + 20 padding (10+10) + 12 arrow + 2 your extra
+    const max = Math.ceil(longest + 18 + 10 + 20 + 12 + 16);
+    setMenuMaxWidth(max);
+    setMenuWidth(max); // load width = same as max drag width, not hardcoded 180
+  }, []);
+  const [dragWidth, setDragWidth] = useState(180);
+  const [dragging, setDragging] = useState(false);
+  const dragRef = useRef<{ startX: number; startWidth: number } | null>(null);
+  const dragWidthRef = useRef(180); // live width, no stale state in onUp
+  const maxWidthRef = useRef(MENU_FALLBACK_MAX_WIDTH);
+  useEffect(() => {
+    maxWidthRef.current = menuMaxWidth;
+  }, [menuMaxWidth]);
+
+  const onResizeDown = useCallback(
+    (e: React.PointerEvent) => {
+      e.preventDefault();
+      (e.target as HTMLElement).setPointerCapture(e.pointerId);
+      const start = menuWidth; // menuWidth already holds exact width (70 stays 70), never force 56
+      dragRef.current = { startX: e.clientX, startWidth: start };
+      dragWidthRef.current = start;
+      setDragWidth(start);
+      setDragging(true);
+    },
+    [menuWidth],
+  );
+
+  useEffect(() => {
+    if (!dragging) return;
+    const onMove = (e: PointerEvent) => {
+      if (!dragRef.current) return;
+      const w = dragRef.current.startWidth + (e.clientX - dragRef.current.startX);
+      const clamped = Math.min(maxWidthRef.current, Math.max(MENU_MIN_WIDTH, w));
+      dragWidthRef.current = clamped; // keep ref in sync
+      setDragWidth(clamped); // smooth, no snap mid-drag
+    };
+    const onUp = () => {
+      const w = dragWidthRef.current; // read live ref, no updater side-effects
+      dragRef.current = null;
+      setDragging(false);
+      setCollapsed(w <= LABEL_HIDE_WIDTH);
+      setMenuWidth(w); // 70 stays 70, no jump to 56
+    };
+    window.addEventListener("pointermove", onMove);
+    window.addEventListener("pointerup", onUp);
+    return () => {
+      window.removeEventListener("pointermove", onMove);
+      window.removeEventListener("pointerup", onUp);
+    };
+  }, [dragging]);
   const [query, setQuery] = useState("");
 
+  const isCollapsedVisual = dragging ? dragWidth <= LABEL_HIDE_WIDTH : collapsed;
   const crumbs = findPath(MENUS, active) ?? [];
   const visible = filterMenus(MENUS, query.trim().toLowerCase());
 
@@ -199,15 +276,27 @@ export default function MainApp({
         </button>
       </header>
       <div className="app-body">
-        <aside className={`${menuOpen ? "menu open" : "menu"}${collapsed ? " collapsed" : ""}`}>
+        <aside
+          className={`${menuOpen ? "menu open" : "menu"}${isCollapsedVisual ? " collapsed" : ""}${dragging ? " dragging" : ""}`}
+          style={{ width: dragging ? dragWidth : menuWidth }}>
           <nav>
             <ul className="menu-list">{renderItems(visible)}</ul>
           </nav>
+          <div className="resize-handle" onPointerDown={onResizeDown} title="Drag to resize menu" />
           <button
             className="collapse-btn"
-            onClick={() => setCollapsed((v) => !v)}
+            onClick={() => {
+              if (collapsed) {
+                setCollapsed(false);
+                setMenuWidth(maxWidthRef.current);
+              } else {
+                setCollapsed(true);
+                setMenuWidth(56);
+              }
+            }}
             title={collapsed ? "Expand menu" : "Collapse menu"}>
             <FontAwesomeIcon icon={collapsed ? faChevronRight : faChevronLeft} />{" "}
+            <span className="menu-label">Collapse</span>
           </button>
         </aside>
         {menuOpen && <div className="backdrop" onClick={() => setMenuOpen(false)} />}

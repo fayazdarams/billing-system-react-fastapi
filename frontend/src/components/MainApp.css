@@ -174,7 +174,7 @@
 
 .submenu {
     position: absolute;
-    left: calc(100% + 6px);
+    left: calc(100%);
     top: 0;
     min-width: 180px;
     background: #fff;
@@ -187,7 +187,7 @@
 }
 
 .submenu .submenu {
-    left: calc(100% + 6px);
+    left: calc(100%);
     top: 0
 }
 
@@ -201,10 +201,10 @@
     .submenu::before {
         content: "";
         position: absolute;
-        left: -8px;
+        left: -2px;
         top: 0;
         bottom: 0;
-        width: 8px
+        width: 2px
     }
 }
 
@@ -217,12 +217,12 @@
 }
 
 .menu.collapsed .menu-item {
-    justify-content: center;
-    padding: 9px 6px
+    justify-content: space-between;
+    padding: 9px 10px
 }
 
 .menu.collapsed .menu-item-left {
-    justify-content: center
+    justify-content: flex-start
 }
 
 .menu.collapsed .submenu {
@@ -232,12 +232,12 @@
 }
 
 .menu.collapsed .submenu .menu-item {
-    justify-content: center;
-    padding: 9px 6px
+    justify-content: space-between;
+    padding: 9px 10px
 }
 
 .menu.collapsed .submenu .menu-item-left {
-    justify-content: center
+    justify-content: flex-start
 }
 
 .collapse-btn {
@@ -249,15 +249,17 @@
     gap: 8px;
     align-items: center;
     justify-content: center;
+    background: #f1f5f9;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
     padding: 8px;
-    border: none;
-    background-color: transparent;
     cursor: pointer;
     color: #475569;
     font-size: .85em
 }
 
 .collapse-btn:hover {
+    background: #eef2ff;
     color: #4338ca
 }
 
@@ -429,15 +431,54 @@
         display: none
     }
 
-    @media (min-width: 768px) {
-        .menu {
-            position: relative;
-            /* keeps collapse button inside menu */
-            top: auto;
-            /* cancels top: 57px, so menu does NOT shift down */
-            bottom: auto;
-            transform: none;
-            flex-shrink: 0;
-        }
+    .menu {
+        position: relative;
+        top: auto;
+        bottom: auto;
+        transform: none;
+        flex-shrink: 0
     }
+}
+
+/* Drag resize — right border of menu, VS Code style */
+.resize-handle {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    right: 0;
+    width: 4px;
+    cursor: ew-resize;
+    z-index: 5;
+    background: transparent
+}
+
+.resize-handle:hover {
+    background: #4338ca
+}
+
+.menu.dragging .resize-handle {
+    background: #4338ca;
+    z-index: 30
+}
+
+.menu.dragging {
+    transition: none;
+    user-select: none;
+    overflow: hidden
+}
+
+.menu.dragging * {
+    user-select: none
+}
+
+@media(max-width:767px) {
+    .resize-handle {
+        display: none
+    }
+}
+
+.menu-label {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis
 }
