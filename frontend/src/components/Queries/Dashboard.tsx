@@ -44,7 +44,6 @@ const COLS: Card[][] = [
 export default function Dashboard({ onOpen }: { onOpen: (id: string) => void }) {
   return (
     <div className="dash">
-      <h1 className="dash-title">DASHBOARD</h1>
       <div className="dash-grid">
         {COLS.map((col, i) => (
           <div key={i} className="dash-col">

@@ -14,7 +14,7 @@ import {
   faWalking,
   faReceipt,
   faCog,
-  faSearch,
+  //faSearch,
   faBars,
   faSignOutAlt,
   faTag,
@@ -31,7 +31,8 @@ import {
   faStar,
 } from "@fortawesome/free-solid-svg-icons";
 import type { IconDefinition } from "@fortawesome/fontawesome-svg-core";
-import Dashboard from "./Dashboard";
+import Dashboard from "./Queries/Dashboard";
+import AccountTable from "./Queries/AccountsTable";
 import "./MainApp.css";
 
 type MenuItem = { id: string; label: string; icon: IconDefinition; children?: MenuItem[] };
@@ -145,6 +146,9 @@ export default function MainApp({
   onLogout: () => void;
 }) {
   const [active, setActive] = useState("dashboard");
+  // CHANGE 1: Title lives here, in MainApp — not in crumbs, not in AccountForm.
+  // Menu sets the default, child (AccountTable) overrides it for New / Edit / List.
+  const [contentTitle, setContentTitle] = useState("Dashboard");
   const [open, setOpen] = useState<Record<string, boolean>>({});
   const [menuOpen, setMenuOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
@@ -227,15 +231,25 @@ export default function MainApp({
   const crumbs = findPath(MENUS, active) ?? [];
   const visible = filterMenus(MENUS, query.trim().toLowerCase());
 
+  // CHANGE 2: select() sets title from menu — this is the DEFAULT title.
+  // Child can override it later via onTitle (e.g. AccountTable → "New Account").
   function select(id: string, hasChildren: boolean) {
     if (hasChildren) {
       setOpen((p) => ({ ...p, [id]: !p[id] }));
       return;
     }
     setActive(id);
+    setContentTitle(findPath(MENUS, id)?.at(-1)?.label ?? id);
     setMenuOpen(false);
     setOpen({});
     setQuery("");
+  }
+
+  // Dashboard tiles call onOpen(id) directly — they must go through same title logic.
+  // Otherwise clicking a Dashboard tile would change content but leave old header title.
+  function openFromDashboard(id: string) {
+    setActive(id);
+    setContentTitle(findPath(MENUS, id)?.at(-1)?.label ?? id);
   }
 
   function renderItems(items: MenuItem[]) {
@@ -268,6 +282,8 @@ export default function MainApp({
           <FontAwesomeIcon icon={faBars} />
         </button>
         <strong className="store">{storeName}</strong>
+        {/* CHANGE 3: Center title — info-only, not clickable */}
+        <span className="app-header-title">{contentTitle}</span>
         <span className="user">{username}</span>
         <button className="logout-btn" onClick={onLogout}>
           <FontAwesomeIcon icon={faSignOutAlt} /> Log out
@@ -280,38 +296,47 @@ export default function MainApp({
           <nav>
             <ul className="menu-list">{renderItems(visible)}</ul>
           </nav>
+
+          {/* Search — just below menu-list, fixed here. Never moves. */}
+          <div className="menu-search">
+            <div className="search-box">
+              {/*
+      <FontAwesomeIcon icon={faSearch} className="search-icon" />
+      */}
+              <input
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder="Search menu..."
+                aria-label="Search menu"
+              />
+            </div>
+          </div>
+
+          {/* Spacer — takes all blank space, shrinks when crumbs wrap */}
+          <div className="menu-spacer" />
+
+          {/* Crumbs — fixed at very bottom. Plain text, no button. */}
+          <nav className="crumbs menu-crumbs" aria-label="Breadcrumb">
+            {crumbs.map((c, i) => (
+              <span key={c.id}>
+                {i > 0 && <span className="crumb-sep"> / </span>}
+                <span className={i === crumbs.length - 1 ? "crumb current" : "crumb"}>{c.label}</span>
+              </span>
+            ))}
+          </nav>
+
           <div className="resize-handle" onPointerDown={onResizeDown} title="Drag to resize menu" />
         </aside>
         {menuOpen && <div className="backdrop" onClick={() => setMenuOpen(false)} />}
         <main className="content">
-          <div className="content-top">
-            <nav className="crumbs" aria-label="Breadcrumb">
-              {crumbs.map((c, i) => (
-                <span key={c.id}>
-                  {i > 0 && <span className="crumb-sep"> / </span>}
-                  <button
-                    className={i === crumbs.length - 1 ? "crumb current" : "crumb"}
-                    onClick={() => !c.children && select(c.id, false)}>
-                    {c.label}
-                  </button>
-                </span>
-              ))}
-            </nav>
-            <div className="search-box">
-              <FontAwesomeIcon icon={faSearch} className="search-icon" />
-              <input
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                placeholder="Search menu, accounts, items..."
-                aria-label="Search"
-              />
-            </div>
-          </div>
           {active === "dashboard" ? (
-            <Dashboard onOpen={(id) => setActive(id)} />
+            <Dashboard onOpen={openFromDashboard} />
+          ) : active === "account" ? (
+            // CHANGE 4: AccountTable owns List vs New vs Edit — it pushes title up.
+            <AccountTable onTitle={setContentTitle} />
           ) : (
             <div className="placeholder">
-              <h1>{crumbs[crumbs.length - 1]?.label ?? active}</h1>
+              <h1>{contentTitle}</h1>
               <p>Form / list / report will open here.</p>
             </div>
           )}

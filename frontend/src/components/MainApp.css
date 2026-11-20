@@ -1,4 +1,4 @@
-/* Modern ERP: light sidebar, icons, collapsible, breadcrumb + search. Mobile-First. */
+/* Modern ERP: light sidebar, icons, collapsible, breadcrumb + search. Desktop-First. */
 .app {
     display: flex;
     flex-direction: column;
@@ -12,15 +12,30 @@
 }
 
 .app-header {
+    position: relative;
     display: flex;
     align-items: center;
     gap: 12px;
-    padding: 12px 16px;
+    padding: 0.5rem;
     background: #fff;
     color: #0f172a;
     width: 100%;
     box-sizing: border-box;
     border-bottom: 1px solid #e2e8f0
+}
+
+.app-header-title {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    translate: -50% -50%;
+    font-weight: 700;
+    text-transform: uppercase;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 50%;
+    pointer-events: none;
 }
 
 .store {
@@ -90,16 +105,60 @@
     transform: translateX(0)
 }
 
+/* FIXED: was flex: 1 — that pushed search to bottom. Now nav is only as tall as menu-list. */
 .menu nav {
-    flex: 1;
-    overflow: visible
+    flex: 0 0 auto;
+    overflow: visible;
 }
 
+/* Search — just below menu-list, fixed here. Never moves. */
+.menu-search {
+    padding: 8px 2px;
+    box-sizing: border-box;
+    width: 100%;
+    min-width: 0;
+    flex: 0 0 auto;
+}
+
+/* Spacer — takes all blank space, shrinks when crumbs wrap. */
+.menu-spacer {
+    flex: 1;
+    min-height: 0;
+}
+
+/* Crumbs — fixed at very bottom. Plain text, no button. */
+.menu-crumbs {
+    border-top: 1px solid #e2e8f0;
+    padding: 8px 2px;
+    box-sizing: border-box;
+    width: 100%;
+    min-width: 0;
+    white-space: normal;
+    overflow-wrap: anywhere;
+    flex: 0 0 auto;
+}
+
+.menu-crumbs .crumb {
+    white-space: normal;
+}
+
+/* When collapsed to 56px, hide search + crumbs, keep it from breaking layout */
+.menu.collapsed .menu-search,
+.menu.collapsed .menu-crumbs {
+    display: none;
+}
+
+/* MERGED: was 2 separate .menu-list blocks, second wiped out border-bottom */
 .menu-list,
 .submenu {
     list-style: none;
     margin: 0;
     padding: 0
+}
+
+.menu-list {
+    border-bottom: 1px solid #e2e8f0;
+    padding-bottom: 12px;
 }
 
 .menu-li {
@@ -276,17 +335,8 @@
 }
 
 .crumb {
-    background: none;
-    border: 0;
     color: #64748b;
-    cursor: pointer;
     padding: 2px 4px;
-    border-radius: 6px
-}
-
-.crumb:hover {
-    color: #4338ca;
-    background: #eef2ff
 }
 
 .crumb.current {
@@ -304,31 +354,29 @@
     gap: 8px;
     align-items: center;
     background: #fff;
-    border: 1px solid #e2e8f0;
+    border-bottom: 1px solid #0c6eee;
     border-radius: 10px;
-    padding: 8px 10px;
-    min-width: 220px;
-    flex: 1;
-    max-width: 360px
-}
-
-.search-box:focus-within {
-    border-color: #4338ca;
-    box-shadow: 0 0 0 3px #eef2ff
-}
-
-.search-icon {
-    color: #94a3b8;
-    font-size: .85em
+    padding: 8px 2px;
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    flex: 1 1 auto;
+    box-sizing: border-box;
 }
 
 .search-box input {
     border: 0;
     outline: 0;
-    width: 100%;
+    flex: 1 1 auto;
+    width: 0;
+    min-width: 0;
     font: inherit;
     font-size: .92em;
     background: transparent
+}
+
+.search-box .search-icon {
+    flex: 0 0 auto;
 }
 
 .placeholder {
@@ -354,7 +402,6 @@
     white-space: nowrap;
     z-index: 50;
     pointer-events: none;
-
 }
 
 .menu.collapsed .menu-li:hover>.menu-item>.menu-item-left>.tooltip {
@@ -380,6 +427,12 @@
 
     .menu.collapsed .tooltip {
         display: none
+    }
+
+    /* On mobile, menu is 230px even when collapsed, so show search + crumbs */
+    .menu.collapsed .menu-search,
+    .menu.collapsed .menu-crumbs {
+        display: block;
     }
 
     .submenu {
@@ -433,7 +486,6 @@
     z-index: 5;
     background: transparent
 }
-
 
 .menu.dragging .resize-handle {
     background: #eef2ff;

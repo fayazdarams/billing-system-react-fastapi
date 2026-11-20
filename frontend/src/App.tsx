@@ -14,12 +14,14 @@ export default function App() {
   const lastFocusedRef = useRef<HTMLElement | null>(null);
   // --- Login / Auto-login (added, rest untouched) ---
   const [user, setUser] = useState<LoggedInUser | null>(null);
+  const [checking, setChecking] = useState(true);
 
   // Auto-login: on app load, ask backend if HttpOnly cookie is still valid
   useEffect(() => {
     getJson("/me")
       .then((data) => setUser(data as LoggedInUser))
-      .catch(() => setUser(null));
+      .catch(() => setUser(null))
+      .finally(() => setChecking(false));
   }, []);
 
   async function handleLogout() {
@@ -75,13 +77,13 @@ export default function App() {
       data-safe-area-inset-root
       className="app-shell"
       style={{ boxSizing: "border-box", paddingTop: "var(--safe-area-inset-top)" }}>
-      <main className="app-main" inert={isOffline ? true : undefined}>
+      <main className="app-main" /* inert={isOffline ? true : undefined}  */>
         {/*}
         <p className="app-eyebrow">Billing System</p>
         <h1 className="app-heading">Welcome back</h1>
         <p className="app-subheading">Sign in to manage billing, stores and accounts.</p>
         */}
-        {user ? (
+        {checking ? null : user ? (
           <MainApp storeName={user.storeName} username={user.username} onLogout={handleLogout} />
         ) : (
           <LoginCard onToast={showToast} onLoginSuccess={setUser} />
@@ -89,7 +91,7 @@ export default function App() {
       </main>
 
       <Toast toast={toast} onClose={closeToast} />
-      {isOffline && (
+      {/* {isOffline && (
         <div className="offline-overlay" role="alert">
           <div className="offline-box">
             <h2>No internet Connection!</h2>
@@ -97,6 +99,7 @@ export default function App() {
           </div>
         </div>
       )}
+      */}
     </div>
   );
 }
