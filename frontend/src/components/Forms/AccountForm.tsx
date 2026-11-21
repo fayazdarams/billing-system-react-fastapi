@@ -55,10 +55,23 @@ export default function AccountForm({ onSave, onCancel }: Props) {
   const [openingBalance, setOpeningBalance] = useState("0");
   const [openingBalanceType, setOpeningBalanceType] = useState("Dr");
   const [errors, setErrors] = useState<AccountErrors>(emptyErrors);
-  // WhatsApp mirrors Mobile until user types in WhatsApp by hand.
-  const [whatsappTouched, setWhatsappTouched] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const shown = (msg: string) => (submitted ? msg : "");
+
+  function resetForm() {
+    setName("");
+    setAddress("");
+    setMobile("");
+    setWhatsapp("");
+    setEmail("");
+    setAadhar("");
+    setGstin("");
+    setPan("");
+    setOpeningBalance("");
+    setOpeningBalanceType("Dr");
+    setErrors(emptyErrors);
+    setSubmitted(false);
+  }
 
   function validateAll(next: {
     name: string;
@@ -95,26 +108,18 @@ export default function AccountForm({ onSave, onCancel }: Props) {
     if (field === "gstin") value = value.toUpperCase().replace(/[^A-Z0-9]/g, "");
 
     // WhatsApp mirrors Mobile until user edits WhatsApp by hand.
-    let nextWhatsapp = whatsapp;
-    if (field === "mobile") {
-      setMobile(value);
-      if (!whatsappTouched) {
-        nextWhatsapp = value;
-        setWhatsapp(value);
-      }
-    }
-    if (field === "whatsapp") {
-      setWhatsappTouched(true);
-      nextWhatsapp = value;
-      setWhatsapp(value);
-    }
 
     if (field === "name") setName(value);
     if (field === "address") setAddress(value);
-    if (field === "email") setEmail(value);
-    if (field === "aadhar") setAadhar(value);
     if (field === "gstin") setGstin(value);
     if (field === "pan") setPan(value);
+    if (field === "mobile") {
+      setMobile(value);
+      setWhatsapp(value);
+    }
+    if (field === "whatsapp") setWhatsapp(value);
+    if (field === "email") setEmail(value);
+    if (field === "aadhar") setAadhar(value);
     if (field === "openingBalance") setOpeningBalance(value);
     if (field === "openingBalanceType") setOpeningBalanceType(value);
 
@@ -124,7 +129,7 @@ export default function AccountForm({ onSave, onCancel }: Props) {
         name: field === "name" ? value : name,
         address: field === "address" ? value : address,
         mobile: field === "mobile" ? value : mobile,
-        whatsapp: nextWhatsapp,
+        whatsapp: field === "whatsapp" ? value : field === "mobile" ? value : whatsapp,
         email: field === "email" ? value : email,
         aadhar: field === "aadhar" ? value : aadhar,
         gstin: field === "gstin" ? value : gstin,

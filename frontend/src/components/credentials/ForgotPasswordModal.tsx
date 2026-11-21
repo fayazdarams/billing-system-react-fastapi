@@ -237,7 +237,7 @@ export default function ForgotPasswordModal({ open, onClose, onToast, initialUse
             Enter the 6-digit code sent to your registered mobile number.
           </p>
 
-          <div className="modal-actions">
+          <div className="actions">
             <button type="submit" className="primary-button" disabled={loading}>
               Next
             </button>

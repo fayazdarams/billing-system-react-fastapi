@@ -31,12 +31,3 @@
     border-top: 1px solid var(--border, #ddd);
     margin: 1rem 0;
 }
-
-.modal-actions {
-    display: flex;
-    justify-content: center;
-    gap: 0.3rem;
-    margin-top: auto;
-    padding-top: 16px;
-    border-top: 1px solid var(--border, #ddd);
-}

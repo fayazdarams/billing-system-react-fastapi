@@ -72,15 +72,23 @@ export default function RegisterModal({ open, onClose, onToast }: RegisterModalP
     setShowConfirmPassword(false);
   }
 
-  function validateAll(): RegisterErrors {
+  function validateAll(next: {
+    username: string;
+    password: string;
+    confirmPassword: string;
+    storeName: string;
+    mobile: string;
+    whatsapp: string;
+    email: string;
+  }): RegisterErrors {
     return {
-      username: getUsernameError(username),
-      password: getPasswordError(password),
-      confirmPassword: getConfirmPasswordError(password, confirmPassword),
-      storeName: getStoreNameError(storeName),
-      mobile: getMobileError(mobile, "Mobile"),
-      whatsapp: getMobileError(whatsapp, "WhatsApp"),
-      email: getEmailError(email),
+      username: getUsernameError(next.username),
+      password: getPasswordError(next.password),
+      confirmPassword: getConfirmPasswordError(next.password, next.confirmPassword),
+      storeName: getStoreNameError(next.storeName),
+      mobile: getMobileError(next.mobile, "Mobile"),
+      whatsapp: getMobileError(next.whatsapp, "WhatsApp"),
+      email: getEmailError(next.email),
     };
   }
 
@@ -107,15 +115,7 @@ export default function RegisterModal({ open, onClose, onToast }: RegisterModalP
         whatsapp: name === "whatsapp" ? value : name === "mobile" ? value : whatsapp,
         email: name === "email" ? value : email,
       };
-      setErrors({
-        username: getUsernameError(next.username),
-        password: getPasswordError(next.password),
-        confirmPassword: getConfirmPasswordError(next.password, next.confirmPassword),
-        storeName: getStoreNameError(next.storeName),
-        mobile: getMobileError(next.mobile, "Mobile"),
-        whatsapp: getMobileError(next.whatsapp, "WhatsApp"),
-        email: getEmailError(next.email),
-      });
+      setErrors(validateAll(next));
     }
   }
 
@@ -123,7 +123,15 @@ export default function RegisterModal({ open, onClose, onToast }: RegisterModalP
     event.preventDefault();
     if (loading) return;
     const form = event.currentTarget;
-    const nextErrors = validateAll();
+    const nextErrors = validateAll({
+      username,
+      password,
+      confirmPassword,
+      storeName,
+      mobile,
+      whatsapp,
+      email,
+    });
     setErrors(nextErrors);
     setSubmitted(true);
     if (Object.values(nextErrors).some(Boolean)) {
@@ -256,7 +264,7 @@ export default function RegisterModal({ open, onClose, onToast }: RegisterModalP
               />
             </div>
           </div>
-          <div className="modal-actions">
+          <div className="actions">
             <button type="submit" className="primary-button" disabled={loading}>
               Submit
             </button>

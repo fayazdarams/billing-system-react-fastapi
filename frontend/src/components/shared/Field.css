@@ -19,7 +19,7 @@
   position: relative;
   /* Place resize-handler close to the border. Visually good. Kept 1px so when slidebar appears 
   it does not cut the border*/
-  padding-bottom: 0;
+  padding-bottom: 1px;
   padding-right: 0;
 }
 
@@ -28,14 +28,14 @@
   resize: vertical;
   overflow-y: auto;
   /* Compensate height of the field by adding padding to textarea */
-  padding-bottom: 10px;
+  padding-bottom: 9px;
   /* Padding-right back.*/
   padding-right: 10px;
 
   /* The size of the textarea can not be reduced below (1 line height + 10px of padding-bottom) 
   This means when the textarea is at its  minimum height the height of field containg textarea always
   resembles/matches other fields (Visually symetric)*/
-  min-height: calc(1lh + 10px);
+  min-height: calc(1lh + 9px);
 }
 
 
@@ -48,24 +48,6 @@
   /* 2nd pixel, inside the box */
 }
 
-/* Custom resize grip — whole bottom border is draggable */
-.field-resize {
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  height: 6px;
-  /* grab area, easy to catch */
-  cursor: ns-resize;
-  /* up/down arrow */
-  background: transparent;
-  touch-action: none;
-}
-
-.field:hover .field-resize {
-  background: rgba(0, 0, 0, 0.08);
-  /* faint hint on hover that border is draggable */
-}
 
 /* Error - red */
 .field.field-invalid {
@@ -172,4 +154,13 @@
   background-position: calc(100% - 16px) calc(50% - 2px), calc(100% - 11px) calc(50% - 2px);
   background-size: 5px 5px, 5px 5px;
   background-repeat: no-repeat;
+}
+
+
+.actions {
+  display: flex;
+  justify-content: center;
+  gap: 0.3rem;
+  margin-top: auto;
+  padding-top: 1rem;
 }
