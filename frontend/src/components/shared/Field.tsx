@@ -2,7 +2,6 @@ import { useEffect, useRef } from "react";
 import type { RefObject } from "react";
 import "./Field.css";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-//import { faEye, faEyeSlash } from "@fortawesome/free-solid-svg-icons";
 import { faEye, faEyeSlash } from "@fortawesome/free-regular-svg-icons";
 
 export interface FieldProps {
@@ -62,6 +61,34 @@ export default function Field({
 
   const fieldClass = error ? "field field-invalid" : showValid ? "field field-valid" : "field";
 
+  // Custom resize grip for textarea — replaces browser corner grip
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  /*
+  const onGripMouseDown = (e: React.MouseEvent) => {
+    if (!textareaRef.current) return;
+    e.preventDefault();
+
+    const startY = e.clientY;
+    const startHeight = textareaRef.current.offsetHeight;
+
+    const onMove = (ev: MouseEvent) => {
+      if (!textareaRef.current) return;
+      const newHeight = startHeight + (ev.clientY - startY);
+      // No Math.max, no minHeight here — CSS min-height handles it
+      textareaRef.current.style.height = newHeight + "px";
+    };
+
+    const onUp = () => {
+      document.removeEventListener("mousemove", onMove);
+      document.removeEventListener("mouseup", onUp);
+    };
+
+    document.addEventListener("mousemove", onMove);
+    document.addEventListener("mouseup", onUp);
+  };
+  */
+
   return (
     <div className="field-wrap">
       <label className={fieldClass} htmlFor={id}>
@@ -72,6 +99,7 @@ export default function Field({
         <span className="field-row">
           {as === "textarea" ? (
             <textarea
+              ref={textareaRef}
               id={id}
               className="field-input"
               rows={rows ?? 3}
@@ -79,7 +107,7 @@ export default function Field({
               onChange={(event) => onChange(event.target.value)}
               onKeyDown={(event) => {
                 if (event.key === "Enter" && event.shiftKey) {
-                  event.stopPropagation(); // stop enterAsTab / form onKeyDown from stealing it
+                  event.stopPropagation();
                 }
               }}
               autoFocus={autoFocus}
@@ -139,6 +167,9 @@ export default function Field({
             </button>
           )}
         </span>
+        {/* Custom resize grip — only for textarea, full-width bottom border 
+        {as === "textarea" && <span className="field-resize" onMouseDown={onGripMouseDown} aria-hidden="true" />}
+        */}
       </label>
       {/* Hint: between box and error, always in this order */}
       {hint ? <div className="field-hint">{hint}</div> : null}

@@ -77,7 +77,7 @@ export default function App() {
       data-safe-area-inset-root
       className="app-shell"
       style={{ boxSizing: "border-box", paddingTop: "var(--safe-area-inset-top)" }}>
-      <main className="app-main" /* inert={isOffline ? true : undefined}  */>
+      <main className="app-main" inert={isOffline ? true : undefined}>
         {/*}
         <p className="app-eyebrow">Billing System</p>
         <h1 className="app-heading">Welcome back</h1>
@@ -91,7 +91,7 @@ export default function App() {
       </main>
 
       <Toast toast={toast} onClose={closeToast} />
-      {/* {isOffline && (
+      {isOffline && (
         <div className="offline-overlay" role="alert">
           <div className="offline-box">
             <h2>No internet Connection!</h2>
@@ -99,7 +99,6 @@ export default function App() {
           </div>
         </div>
       )}
-      */}
     </div>
   );
 }

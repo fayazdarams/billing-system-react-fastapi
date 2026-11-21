@@ -1,142 +1,175 @@
-  /* Mobile-first base: one column, full width, 62px field box. */
-  .field-wrap {
-    margin-bottom: 0.45rem;
-    text-align: left;
-  }
+/* Mobile-first base: one column, full width, 62px field box. */
+.field-wrap {
+  margin-bottom: 0.45rem;
+  text-align: left;
+}
 
-  .field {
-    display: block;
-    min-height: 56px;
-    padding: 6px 10px 8px 10px;
-    background: #f5f5f5;
-    border: none;
-    border-bottom: 1px solid #333;
-    border-radius: 2px 2px 0 0;
-    cursor: text;
-  }
+.field {
+  display: block;
+  padding: 10px;
+  background: #f5f5f5;
+  border: none;
+  border-bottom: 1px solid #333;
+  border-radius: 2px 2px 0 0;
+  cursor: text;
 
-  .field:has(textarea) {
-    padding-bottom: 0;
-    padding-right: 0;
+}
 
-  }
+.field:has(textarea) {
+  position: relative;
+  /* Place resize-handler close to the border. Visually good. Kept 1px so when slidebar appears 
+  it does not cut the border*/
+  padding-bottom: 0;
+  padding-right: 0;
+}
 
-  .field:has(textarea) textarea {
-    resize: vertical;
-    overflow-y: auto;
-    min-height: 30px;
-  }
+.field:has(textarea) textarea {
+  display: block;
+  resize: vertical;
+  overflow-y: auto;
+  /* Compensate height of the field by adding padding to textarea */
+  padding-bottom: 10px;
+  /* Padding-right back.*/
+  padding-right: 10px;
 
-  .field:focus-within {
-    border-bottom-color: #000;
-    box-shadow: inset 0 -1px 0 #000;
-    /* 2nd pixel, inside the box */
-  }
+  /* The size of the textarea can not be reduced below (1 line height + 10px of padding-bottom) 
+  This means when the textarea is at its  minimum height the height of field containg textarea always
+  resembles/matches other fields (Visually symetric)*/
+  min-height: calc(1lh + 10px);
+}
 
 
-  /* Error - red */
-  .field.field-invalid {
-    border-bottom-color: var(--danger, #dc3545);
-  }
 
-  /* Fixed - green. Only shows after field was in error, then fixed. */
-  .field.field-valid {
-    border-bottom-color: #1a8a3a;
-  }
 
-  .field-label {
-    display: flex;
-    color: var(--text-muted, #6c757d);
-    font-size: 0.82rem;
-    line-height: 1.2;
-  }
 
-  .field-row {
-    position: relative;
-    display: flex;
-  }
+.field:focus-within {
+  border-bottom-color: #000;
+  box-shadow: inset 0 -1px 0 #000;
+  /* 2nd pixel, inside the box */
+}
 
-  .field-input {
-    width: 100%;
-    border: 0;
-    outline: none;
-    background: transparent;
-    color: var(--text, #000);
-    font-size: 0.92rem;
-    line-height: 1.4;
-    padding: 0;
-  }
+/* Custom resize grip — whole bottom border is draggable */
+.field-resize {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 6px;
+  /* grab area, easy to catch */
+  cursor: ns-resize;
+  /* up/down arrow */
+  background: transparent;
+  touch-action: none;
+}
 
-  .field-input:disabled {
-    color: var(--text-muted, #6c757d);
-  }
+.field:hover .field-resize {
+  background: rgba(0, 0, 0, 0.08);
+  /* faint hint on hover that border is draggable */
+}
 
-  .field-input.field-input-with-eye {
-    padding-right: 36px;
-  }
+/* Error - red */
+.field.field-invalid {
+  border-bottom-color: var(--danger, #dc3545);
+}
 
-  .field-eye {
-    position: absolute;
-    right: 0;
-    top: 50%;
-    transform: translateY(-50%);
-    width: 32px;
-    height: 32px;
-    border: 0;
-    background: transparent;
-    color: var(--text-muted, #6c757d);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    border-radius: 4px;
-  }
+/* Fixed - green. Only shows after field was in error, then fixed. */
+.field.field-valid {
+  border-bottom-color: #1a8a3a;
+}
 
-  .field-eye:hover {
-    background: var(--surface-muted, #f1f2f5);
-    color: var(--text, #000);
-  }
+.field-label {
+  display: flex;
+  color: var(--text-muted, #6c757d);
+  font-size: 0.82rem;
+  line-height: 1.2;
+}
 
-  .field-eye svg {
-    width: 15px;
-    height: 15px;
-    color: var(--text-muted, #6c757d);
-  }
+.field-row {
+  position: relative;
+  display: flex;
+}
 
-  /* Hint: between box and error. Same size as your old .account-hint. */
-  .field-hint {
-    display: flex;
-    box-sizing: border-box;
-    margin-top: 2px;
-    color: var(--text-muted, #6c757d);
-    font-size: 12px;
-    line-height: 1.2;
-  }
+.field-input {
+  width: 100%;
+  border: 0;
+  outline: none;
+  background: transparent;
+  color: var(--text, #000);
+  font-size: 0.92rem;
+  line-height: 1.4;
+  padding: 0;
+}
 
-  /* Reserved error slot: always in layout, fixed height, so form height never changes. */
-  .field-error {
-    display: flex;
-    box-sizing: border-box;
-    min-height: 1.1rem;
-    margin-top: 2px;
-    color: var(--danger, #dc3545);
-    font-size: 0.75rem;
-    line-height: 1.2;
-    overflow: hidden;
-    overflow-wrap: anywhere;
-    visibility: hidden;
-  }
+.field-input:disabled {
+  color: var(--text-muted, #6c757d);
+}
 
-  .field-error.field-error-visible {
-    visibility: visible;
-  }
+.field-input.field-input-with-eye {
+  padding-right: 36px;
+}
 
-  .field-select {
-    appearance: none;
-    cursor: pointer;
-    padding-right: 24px;
-    background-image: linear-gradient(45deg, transparent 50%, var(--text-muted, #6c757d) 50%),
-      linear-gradient(135deg, var(--text-muted, #6c757d) 50%, transparent 50%);
-    background-position: calc(100% - 16px) calc(50% - 2px), calc(100% - 11px) calc(50% - 2px);
-    background-size: 5px 5px, 5px 5px;
-    background-repeat: no-repeat;
-  }
+.field-eye {
+  position: absolute;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 32px;
+  height: 32px;
+  border: 0;
+  background: transparent;
+  color: var(--text-muted, #6c757d);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+}
+
+.field-eye:hover {
+  background: var(--surface-muted, #f1f2f5);
+  color: var(--text, #000);
+}
+
+.field-eye svg {
+  width: 15px;
+  height: 15px;
+  color: var(--text-muted, #6c757d);
+}
+
+/* Hint: between box and error. Same size as your old .account-hint. */
+.field-hint {
+  display: flex;
+  box-sizing: border-box;
+  margin-top: 2px;
+  color: var(--text-muted, #6c757d);
+  font-size: 12px;
+  line-height: 1.2;
+}
+
+/* Reserved error slot: always in layout, fixed height, so form height never changes. */
+.field-error {
+  display: flex;
+  box-sizing: border-box;
+  min-height: 1.1rem;
+  margin-top: 2px;
+  color: var(--danger, #dc3545);
+  font-size: 0.75rem;
+  line-height: 1.2;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+  visibility: hidden;
+}
+
+.field-error.field-error-visible {
+  visibility: visible;
+}
+
+.field-select {
+  appearance: none;
+  cursor: pointer;
+  padding-right: 24px;
+  background-image: linear-gradient(45deg, transparent 50%, var(--text-muted, #6c757d) 50%),
+    linear-gradient(135deg, var(--text-muted, #6c757d) 50%, transparent 50%);
+  background-position: calc(100% - 16px) calc(50% - 2px), calc(100% - 11px) calc(50% - 2px);
+  background-size: 5px 5px, 5px 5px;
+  background-repeat: no-repeat;
+}
