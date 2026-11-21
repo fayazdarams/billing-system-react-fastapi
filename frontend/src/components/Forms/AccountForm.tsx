@@ -2,9 +2,46 @@ import { useState } from "react";
 import type { FormEvent } from "react";
 import Field from "../shared/Field";
 import { handleEnterAsTab } from "../../lib/enterAsTab";
+import {
+  getAccountAadharError,
+  getAccountAddressError,
+  getAccountGstError,
+  getAccountNameError,
+  getAccountOpeningBalanceError,
+  getAccountPanError,
+  getAccountTypeError,
+  getEmailError,
+  getMobileError,
+} from "../../lib/validation";
 import "./AccountForm.css";
 
 type Props = { onSave: (v: any) => void; onCancel: () => void };
+
+interface AccountErrors {
+  name: string;
+  address: string;
+  mobile: string;
+  whatsapp: string;
+  email: string;
+  aadhar: string;
+  gstin: string;
+  pan: string;
+  openingBalance: string;
+  openingBalanceType: string;
+}
+
+const emptyErrors: AccountErrors = {
+  name: "",
+  address: "",
+  mobile: "",
+  whatsapp: "",
+  email: "",
+  aadhar: "",
+  gstin: "",
+  pan: "",
+  openingBalance: "",
+  openingBalanceType: "",
+};
 
 export default function AccountForm({ onSave, onCancel }: Props) {
   const [name, setName] = useState("");
@@ -17,19 +54,93 @@ export default function AccountForm({ onSave, onCancel }: Props) {
   const [pan, setPan] = useState("");
   const [openingBalance, setOpeningBalance] = useState("0");
   const [openingBalanceType, setOpeningBalanceType] = useState("Dr");
+  const [errors, setErrors] = useState<AccountErrors>(emptyErrors);
+  // WhatsApp mirrors Mobile until user types in WhatsApp by hand.
+  const [whatsappTouched, setWhatsappTouched] = useState(false);
   const [submitted, setSubmitted] = useState(false);
-  const nameError = !name.trim() ? "Please enter Name" : "";
   const shown = (msg: string) => (submitted ? msg : "");
+
+  function validateAll(next: {
+    name: string;
+    address: string;
+    mobile: string;
+    whatsapp: string;
+    email: string;
+    aadhar: string;
+    gstin: string;
+    pan: string;
+    openingBalance: string;
+    openingBalanceType: string;
+  }): AccountErrors {
+    return {
+      name: getAccountNameError(next.name),
+      address: getAccountAddressError(next.address),
+      mobile: getMobileError(next.mobile, "Mobile"),
+      whatsapp: getMobileError(next.whatsapp, "WhatsApp"),
+      email: getEmailError(next.email),
+      aadhar: getAccountAadharError(next.aadhar),
+      gstin: getAccountGstError(next.gstin),
+      pan: getAccountPanError(next.pan),
+      openingBalance: getAccountOpeningBalanceError(next.openingBalance),
+      openingBalanceType: getAccountTypeError(next.openingBalanceType),
+    };
+  }
+
+  function handleChange(field: string, value: string) {
+    // Sanitize while typing — same rules as validation.ts expects.
+    if (field === "mobile" || field === "whatsapp") value = value.replace(/[^0-9]/g, "");
+    if (field === "aadhar") value = value.replace(/[^0-9]/g, "");
+    if (field === "openingBalance") value = value.replace(/[^0-9.]/g, "").replace(/(\..*)\./g, "$1");
+    if (field === "pan") value = value.toUpperCase().replace(/[^A-Z0-9]/g, "");
+    if (field === "gstin") value = value.toUpperCase().replace(/[^A-Z0-9]/g, "");
+
+    // WhatsApp mirrors Mobile until user edits WhatsApp by hand.
+    let nextWhatsapp = whatsapp;
+    if (field === "mobile") {
+      setMobile(value);
+      if (!whatsappTouched) {
+        nextWhatsapp = value;
+        setWhatsapp(value);
+      }
+    }
+    if (field === "whatsapp") {
+      setWhatsappTouched(true);
+      nextWhatsapp = value;
+      setWhatsapp(value);
+    }
+
+    if (field === "name") setName(value);
+    if (field === "address") setAddress(value);
+    if (field === "email") setEmail(value);
+    if (field === "aadhar") setAadhar(value);
+    if (field === "gstin") setGstin(value);
+    if (field === "pan") setPan(value);
+    if (field === "openingBalance") setOpeningBalance(value);
+    if (field === "openingBalanceType") setOpeningBalanceType(value);
+
+    // After submit, re-validate all fields from new value. Single setErrors.
+    if (submitted) {
+      const next = {
+        name: field === "name" ? value : name,
+        address: field === "address" ? value : address,
+        mobile: field === "mobile" ? value : mobile,
+        whatsapp: nextWhatsapp,
+        email: field === "email" ? value : email,
+        aadhar: field === "aadhar" ? value : aadhar,
+        gstin: field === "gstin" ? value : gstin,
+        pan: field === "pan" ? value : pan,
+        openingBalance: field === "openingBalance" ? value : openingBalance,
+        openingBalanceType: field === "openingBalanceType" ? value : openingBalanceType,
+      };
+      setErrors(validateAll(next));
+    }
+  }
 
   function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    setSubmitted(true);
-    if (nameError) {
-      document.getElementById("acc-name")?.focus();
-      return;
-    }
-    onSave({
-      name: name.trim(),
+    const form = e.currentTarget;
+    const nextErrors = validateAll({
+      name,
       address,
       mobile,
       whatsapp,
@@ -37,8 +148,28 @@ export default function AccountForm({ onSave, onCancel }: Props) {
       aadhar,
       gstin,
       pan,
-      opening_balance: openingBalance,
-      opening_balance_type: openingBalanceType,
+      openingBalance,
+      openingBalanceType,
+    });
+    setErrors(nextErrors);
+    setSubmitted(true);
+    if (Object.values(nextErrors).some(Boolean)) {
+      setTimeout(() => {
+        form.querySelector<HTMLElement>('[aria-invalid="true"]')?.focus();
+      }, 0);
+      return;
+    }
+    onSave({
+      name: name.trim(),
+      address: address.trim(),
+      mobile: mobile.trim(),
+      whatsapp: whatsapp.trim(),
+      email: email.trim(),
+      aadhar: aadhar.trim(),
+      gstin: gstin.trim().toUpperCase(),
+      pan: pan.trim().toUpperCase(),
+      opening_balance: openingBalance.trim(),
+      opening_balance_type: openingBalanceType.trim(),
     });
   }
 
@@ -53,41 +184,39 @@ export default function AccountForm({ onSave, onCancel }: Props) {
               id="acc-name"
               label="Name"
               value={name}
-              onChange={setName}
-              error={shown(nameError)}
+              onChange={(value) => handleChange("name", value)}
+              error={shown(errors.name)}
               required
               autoFocus
-              hint="Hello"
             />
             <Field
               id="acc-address"
-              label="Name"
+              label="Address"
               as="textarea"
               rows={4}
               value={address}
-              onChange={setAddress}
+              onChange={(value) => handleChange("address", value)}
+              error={shown(errors.address)}
+              required
               hint="Shift+Enter : Next line"
             />
-            <Field id="acc-gstin" label="GSTIN/UIN Number" value={gstin} onChange={setGstin} maxLength={15} />
+            <Field
+              id="acc-gstin"
+              label="GSTIN/UIN Number"
+              value={gstin}
+              onChange={(value) => handleChange("gstin", value)}
+              error={shown(errors.gstin)}
+              maxLength={15}
+            />
 
-            <Field id="acc-pan" label="PAN Number" value={pan} onChange={setPan} maxLength={10} />
-            <div className="account-opening-row">
-              <Field
-                id="acc-opening"
-                label="Opening Balance"
-                value={openingBalance}
-                onChange={setOpeningBalance}
-                inputMode="numeric"
-              />
-              <Field
-                id="acc-type"
-                label="Type"
-                as="select"
-                options={["Dr", "Cr"]}
-                value={openingBalanceType}
-                onChange={setOpeningBalanceType}
-              />
-            </div>
+            <Field
+              id="acc-pan"
+              label="PAN Number"
+              value={pan}
+              onChange={(value) => handleChange("pan", value)}
+              error={shown(errors.pan)}
+              maxLength={10}
+            />
           </fieldset>
 
           {/* Col 2 — Contact */}
@@ -97,7 +226,9 @@ export default function AccountForm({ onSave, onCancel }: Props) {
               id="acc-mobile"
               label="Mobile"
               value={mobile}
-              onChange={setMobile}
+              onChange={(value) => handleChange("mobile", value)}
+              error={shown(errors.mobile)}
+              required
               autoComplete="tel"
               inputMode="numeric"
               maxLength={10}
@@ -106,20 +237,52 @@ export default function AccountForm({ onSave, onCancel }: Props) {
               id="acc-whatsapp"
               label="WhatsApp"
               value={whatsapp}
-              onChange={setWhatsapp}
+              onChange={(value) => handleChange("whatsapp", value)}
+              error={shown(errors.whatsapp)}
+              required
               autoComplete="tel"
               inputMode="numeric"
               maxLength={10}
             />
-            <Field id="acc-email" label="Email" type="email" value={email} onChange={setEmail} autoComplete="email" />
+            <Field
+              id="acc-email"
+              label="Email"
+              type="email"
+              value={email}
+              onChange={(value) => handleChange("email", value)}
+              error={shown(errors.email)}
+              autoComplete="email"
+            />
             <Field
               id="acc-aadhar"
               label="Aadhar No."
               value={aadhar}
-              onChange={setAadhar}
+              onChange={(value) => handleChange("aadhar", value)}
+              error={shown(errors.aadhar)}
               inputMode="numeric"
               maxLength={12}
             />
+            <div className="account-opening-row">
+              <Field
+                id="acc-opening"
+                label="Opening Balance"
+                value={openingBalance}
+                onChange={(value) => handleChange("openingBalance", value)}
+                error={shown(errors.openingBalance)}
+                required
+                inputMode="numeric"
+              />
+              <Field
+                id="acc-type"
+                label="Type"
+                as="select"
+                options={["Dr", "Cr"]}
+                value={openingBalanceType}
+                onChange={(value) => handleChange("openingBalanceType", value)}
+                error={shown(errors.openingBalanceType)}
+                required
+              />
+            </div>
           </fieldset>
         </div>
 
