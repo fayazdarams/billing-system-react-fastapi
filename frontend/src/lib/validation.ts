@@ -54,7 +54,7 @@ export function getMobileError(value: string, label: string): string {
 
 export function getEmailError(value: string): string {
   if (!value.trim()) return "";
-  if (!isValidEmail(value.trim())) return "Please enter a valid Email";
+  if (!isValidEmail(value.trim())) return "Please enter a valid Email. (e.g. account@kop.com)";
   return "";
 }
 
@@ -100,7 +100,7 @@ export function getAccountPanError(value: string): string {
   const v = value.trim().toUpperCase();
   if (!v) return "";
   if (v.length !== 10) return "PAN must be 10 characters long";
-  if (!isValidPan(v)) return "Please enter a valid PAN (e.g. ABCDE1234F)";
+  if (!isValidPan(v)) return "Please enter a valid PAN (e.g. ABCPD1234E)";
   return "";
 }
 
@@ -116,17 +116,55 @@ export function getAccountGstError(value: string): string {
   const v = value.trim().toUpperCase();
   if (!v) return "";
   if (v.length !== 15) return "GST must be 15 characters long";
-  if (!isValidGst(v)) return "Please enter a valid GST (e.g. 27ABCDE1234F1Z5)";
+  if (!isValidGst(v)) return "Please enter a valid GST (e.g. 27ABCPD1234E1Z5)";
   return "";
+}
+
+// ---- Verhoeff (Aadhaar checksum) ----
+// Tables from the Verhoeff algorithm. No magic numbers elsewhere —
+// these 3 tables ARE the algorithm.
+const VERHOEFF_D = [
+  [0, 1, 2, 3, 4, 5, 6, 7, 8, 9],
+  [1, 2, 3, 4, 0, 6, 7, 8, 9, 5],
+  [2, 3, 4, 0, 1, 7, 8, 9, 5, 6],
+  [3, 4, 0, 1, 2, 8, 9, 5, 6, 7],
+  [4, 0, 1, 2, 3, 9, 5, 6, 7, 8],
+  [5, 9, 8, 7, 6, 0, 4, 3, 2, 1],
+  [6, 5, 9, 8, 7, 1, 0, 4, 3, 2],
+  [7, 6, 5, 9, 8, 2, 1, 0, 4, 3],
+  [8, 7, 6, 5, 9, 3, 2, 1, 0, 4],
+  [9, 8, 7, 6, 5, 4, 3, 2, 1, 0],
+];
+
+const VERHOEFF_P = [
+  [0, 1, 2, 3, 4, 5, 6, 7, 8, 9],
+  [1, 5, 7, 6, 2, 8, 3, 0, 9, 4],
+  [5, 8, 0, 3, 7, 9, 6, 1, 4, 2],
+  [8, 9, 1, 6, 0, 4, 3, 5, 2, 7],
+  [9, 4, 5, 3, 1, 2, 6, 8, 7, 0],
+  [4, 2, 8, 6, 5, 7, 3, 9, 0, 1],
+  [2, 7, 9, 3, 8, 0, 6, 4, 1, 5],
+  [7, 0, 4, 6, 9, 1, 3, 2, 5, 8],
+];
+
+export function isValidAadhar(value: string): boolean {
+  // Assumes 12 digits already checked. Returns true only if Verhoeff checksum == 0.
+  let c = 0;
+  const digits = value.split("").reverse();
+  for (let i = 0; i < digits.length; i++) {
+    c = VERHOEFF_D[c][VERHOEFF_P[i % 8][Number(digits[i])]];
+  }
+  return c === 0;
 }
 
 export function getAccountAadharError(value: string): string {
   const v = value.trim();
   if (!v) return "";
-  if (!/^[0-9]{12}$/.test(v)) return "Aadhar must be 12 digits";
+  if (!/^[0-9]+$/.test(v)) return "Aadhar must be 12 digits";
+  if (v.length !== 12) return "Aadhar must be 12 digits";
+  // Rule 1 — first digit never 0 or 1 (UIDAI reserves those).
+  if (v[0] === "0" || v[0] === "1") return "Aadhar cannot start with 0 or 1";
+  // Rule 2 — digit 12 is a Verhoeff checksum over digits 1-12.
+  if (!isValidAadhar(v)) return "Please enter a valid Aadhar (checksum failed)";
   return "";
 }
-
-// AccountForm uses the same helpers as RegisterModal for these three:
-// Mobile / WhatsApp -> getMobileError(value, "Mobile" / "WhatsApp")
-// Email -> getEmailError(value)

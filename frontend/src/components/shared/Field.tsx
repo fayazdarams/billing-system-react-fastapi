@@ -25,6 +25,8 @@ export interface FieldProps {
   as?: "input" | "textarea" | "select";
   options?: string[];
   rows?: number;
+  selectOnFocus?: boolean;
+  submitted?: boolean;
 }
 
 export default function Field({
@@ -48,46 +50,19 @@ export default function Field({
   as = "input",
   options,
   rows,
+  selectOnFocus = false,
+  submitted = false,
 }: FieldProps) {
   const internalRef = useRef<HTMLInputElement>(null);
   const refToUse = inputRef ?? internalRef;
   const resolvedType = type === "password" && showEye && eyeOpen ? "text" : type;
 
-  const hadErrorRef = useRef(false);
-  useEffect(() => {
-    if (error) hadErrorRef.current = true;
-  }, [error]);
-  const showValid = !error && hadErrorRef.current && value.trim() !== "";
+  const showValid = !error && submitted;
 
   const fieldClass = error ? "field field-invalid" : showValid ? "field field-valid" : "field";
 
   // Custom resize grip for textarea — replaces browser corner grip
   const textareaRef = useRef<HTMLTextAreaElement>(null);
-
-  /*
-  const onGripMouseDown = (e: React.MouseEvent) => {
-    if (!textareaRef.current) return;
-    e.preventDefault();
-
-    const startY = e.clientY;
-    const startHeight = textareaRef.current.offsetHeight;
-
-    const onMove = (ev: MouseEvent) => {
-      if (!textareaRef.current) return;
-      const newHeight = startHeight + (ev.clientY - startY);
-      // No Math.max, no minHeight here — CSS min-height handles it
-      textareaRef.current.style.height = newHeight + "px";
-    };
-
-    const onUp = () => {
-      document.removeEventListener("mousemove", onMove);
-      document.removeEventListener("mouseup", onUp);
-    };
-
-    document.addEventListener("mousemove", onMove);
-    document.addEventListener("mouseup", onUp);
-  };
-  */
 
   return (
     <div className="field-wrap">
@@ -141,6 +116,11 @@ export default function Field({
               type={resolvedType}
               value={value}
               onChange={(event) => onChange(event.target.value)}
+              onFocus={(event) => {
+                // Select-all only if value is "0" — so typing replaces it.
+                // "12" / "120" etc. are left alone, cursor goes where user clicked.
+                if (selectOnFocus && event.target.value === "0") event.target.select();
+              }}
               required={required}
               autoFocus={autoFocus}
               autoComplete={autoComplete}

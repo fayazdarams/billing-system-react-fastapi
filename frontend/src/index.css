@@ -89,7 +89,6 @@ button:disabled {
 
 .primary-button:focus-visible {
   outline: 2px solid var(--primary);
-  outline-offset: 2px;
 }
 
 .primary-button:active:not(:disabled) {
@@ -123,7 +122,6 @@ button:disabled {
 
 .secondary-button:focus-visible {
   outline: 2px solid var(--secondary);
-  outline-offset: 2px;
 }
 
 .secondary-button:active:not(:disabled) {

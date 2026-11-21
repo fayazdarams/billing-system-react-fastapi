@@ -193,6 +193,7 @@ export default function AccountForm({ onSave, onCancel }: Props) {
               error={shown(errors.name)}
               required
               autoFocus
+              submitted={submitted}
             />
             <Field
               id="acc-address"
@@ -204,6 +205,7 @@ export default function AccountForm({ onSave, onCancel }: Props) {
               error={shown(errors.address)}
               required
               hint="Shift+Enter : Next line"
+              submitted={submitted}
             />
             <Field
               id="acc-gstin"
@@ -212,6 +214,7 @@ export default function AccountForm({ onSave, onCancel }: Props) {
               onChange={(value) => handleChange("gstin", value)}
               error={shown(errors.gstin)}
               maxLength={15}
+              submitted={submitted}
             />
 
             <Field
@@ -221,6 +224,7 @@ export default function AccountForm({ onSave, onCancel }: Props) {
               onChange={(value) => handleChange("pan", value)}
               error={shown(errors.pan)}
               maxLength={10}
+              submitted={submitted}
             />
           </fieldset>
 
@@ -237,6 +241,7 @@ export default function AccountForm({ onSave, onCancel }: Props) {
               autoComplete="tel"
               inputMode="numeric"
               maxLength={10}
+              submitted={submitted}
             />
             <Field
               id="acc-whatsapp"
@@ -248,6 +253,7 @@ export default function AccountForm({ onSave, onCancel }: Props) {
               autoComplete="tel"
               inputMode="numeric"
               maxLength={10}
+              submitted={submitted}
             />
             <Field
               id="acc-email"
@@ -257,6 +263,7 @@ export default function AccountForm({ onSave, onCancel }: Props) {
               onChange={(value) => handleChange("email", value)}
               error={shown(errors.email)}
               autoComplete="email"
+              submitted={submitted}
             />
             <Field
               id="acc-aadhar"
@@ -266,6 +273,7 @@ export default function AccountForm({ onSave, onCancel }: Props) {
               error={shown(errors.aadhar)}
               inputMode="numeric"
               maxLength={12}
+              submitted={submitted}
             />
             <div className="account-opening-row">
               <Field
@@ -276,6 +284,8 @@ export default function AccountForm({ onSave, onCancel }: Props) {
                 error={shown(errors.openingBalance)}
                 required
                 inputMode="numeric"
+                selectOnFocus
+                submitted={submitted}
               />
               <Field
                 id="acc-type"
@@ -286,6 +296,7 @@ export default function AccountForm({ onSave, onCancel }: Props) {
                 onChange={(value) => handleChange("openingBalanceType", value)}
                 error={shown(errors.openingBalanceType)}
                 required
+                submitted={submitted}
               />
             </div>
           </fieldset>
