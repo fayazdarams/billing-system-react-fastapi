@@ -82,7 +82,7 @@ def handle_operational_error(orig, constraint, column, table, detail):
     if isinstance(orig, pg_errors.ConnectionException):
         raise HTTPException(503, "Database connection lost")
 
-    raise HTTPException(503, f"Database unavailable [{type(orig).__name__}]: {detail}")
+    raise HTTPException(503, f"Database is unavailable")
 
 # ============================================================
 # LEVEL 3: IntegrityError

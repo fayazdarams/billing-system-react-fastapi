@@ -65,6 +65,14 @@ export async function getJson(path: string) {
   }
 }
 
+export function getApiErrorStatus(error: unknown): number | null {
+  if (error && typeof error === "object" && "status" in error) {
+    const s = (error as { status: unknown }).status;
+    return typeof s === "number" ? s : null;
+  }
+  return null;
+}
+
 export function getApiErrorMessage(error: unknown): string {
   // Case 1: FastAPI 422 passed as raw object (if someone throws data directly)
   if (error && typeof error === "object" && "detail" in (error as Record<string, unknown>)) {
