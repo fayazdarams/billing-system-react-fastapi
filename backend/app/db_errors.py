@@ -148,7 +148,7 @@ def handle_integrity_error(orig, constraint, column, table, detail):
         #    raise HTTPException(409, "GSTIN already exists.")
         #if constraint == "auth_username_key":
         #    raise HTTPException(409, "Username already exists.")
-        raise HTTPException(409, f"Account already exists.")
+        raise HTTPException(409, f"Record already exists.")
 
     if isinstance(orig, pg_errors.ForeignKeyViolation):
         raise HTTPException(400, f"Related record does not exist.")

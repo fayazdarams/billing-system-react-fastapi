@@ -1,6 +1,8 @@
 import { useEffect } from "react";
 import type { ToastItem } from "../../types";
 import { playErrorSound } from "../../lib/sound";
+import { faXmark } from "@fortawesome/free-solid-svg-icons";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import "./Toast.css";
 
 export interface ToastProps {
@@ -32,8 +34,8 @@ export default function Toast({ toast, onClose }: ToastProps) {
         {symbol}
       </span>
       <span className="toast-message">{toast.message}</span>
-      <button type="button" className="toast-close" aria-label="Dismiss message" onClick={onClose}>
-        ×
+      <button className="toast-close" aria-label="Dismiss message" onClick={onClose}>
+        <FontAwesomeIcon icon={faXmark} />
       </button>
     </div>
   );
