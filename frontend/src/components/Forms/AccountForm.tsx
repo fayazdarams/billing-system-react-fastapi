@@ -13,9 +13,16 @@ import {
   getEmailError,
   getMobileError,
 } from "../../lib/validation";
+import { postJson, getApiErrorMessage } from "../../lib/api";
 import "./AccountForm.css";
+import type { ToastVariant } from "../../types";
 
-type Props = { onSave: (v: any) => void; onCancel: () => void };
+type Props = {
+  onSave: (v: any) => void;
+  onCancel: () => void;
+  onToast: (message: string, variant: ToastVariant) => void;
+  storenumber: number;
+};
 
 interface AccountErrors {
   name: string;
@@ -43,7 +50,7 @@ const emptyErrors: AccountErrors = {
   openingBalanceType: "",
 };
 
-export default function AccountForm({ onSave, onCancel }: Props) {
+export default function AccountForm({ onSave, onCancel, onToast, storenumber }: Props) {
   const [name, setName] = useState("");
   const [address, setAddress] = useState("");
   const [mobile, setMobile] = useState("");
@@ -56,6 +63,7 @@ export default function AccountForm({ onSave, onCancel }: Props) {
   const [openingBalanceType, setOpeningBalanceType] = useState("Dr");
   const [errors, setErrors] = useState<AccountErrors>(emptyErrors);
   const [submitted, setSubmitted] = useState(false);
+  const [saving, setSaving] = useState(false);
   const shown = (msg: string) => (submitted ? msg : "");
 
   function resetForm() {
@@ -67,7 +75,7 @@ export default function AccountForm({ onSave, onCancel }: Props) {
     setAadhar("");
     setGstin("");
     setPan("");
-    setOpeningBalance("");
+    setOpeningBalance("0");
     setOpeningBalanceType("Dr");
     setErrors(emptyErrors);
     setSubmitted(false);
@@ -141,8 +149,9 @@ export default function AccountForm({ onSave, onCancel }: Props) {
     }
   }
 
-  function handleSubmit(e: FormEvent<HTMLFormElement>) {
+  async function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
+    if (saving) return; // double-submit guard, same as register
     const form = e.currentTarget;
     const nextErrors = validateAll({
       name,
@@ -164,18 +173,35 @@ export default function AccountForm({ onSave, onCancel }: Props) {
       }, 0);
       return;
     }
-    onSave({
+    const payload = {
       name: name.trim(),
       address: address.trim(),
       mobile: mobile.trim(),
       whatsapp: whatsapp.trim(),
-      email: email.trim(),
-      aadhar: aadhar.trim(),
-      gstin: gstin.trim().toUpperCase(),
-      pan: pan.trim().toUpperCase(),
-      opening_balance: openingBalance.trim(),
-      opening_balance_type: openingBalanceType.trim(),
-    });
+      email: email.trim() || null,
+      aadhar: aadhar.trim() || null,
+      gstin: gstin.trim().toUpperCase() || null,
+      pan: pan.trim().toUpperCase() || null,
+      openingBalance: openingBalance.trim() === "" ? "0" : openingBalance.trim(),
+      openingBalanceType: openingBalanceType.trim(),
+      storenumber: storenumber,
+    };
+
+    setSaving(true);
+
+    try {
+      const data = await postJson("/accounts", payload);
+      onToast("Account saved successfully", "success");
+      onSave(data);
+      resetForm();
+      setTimeout(() => {
+        form.querySelector<HTMLElement>("#acc-name")?.focus();
+      }, 0);
+    } catch (err) {
+      onToast(getApiErrorMessage(err), "error");
+    } finally {
+      setSaving(false);
+    }
   }
 
   return (
@@ -303,10 +329,10 @@ export default function AccountForm({ onSave, onCancel }: Props) {
         </div>
 
         <div className="actions">
-          <button type="submit" className="primary-button">
-            Save
+          <button type="submit" className="primary-button" disabled={saving}>
+            {saving ? "Saving..." : "Save"}
           </button>
-          <button type="button" className="secondary-button" onClick={onCancel}>
+          <button type="button" className="secondary-button" onClick={onCancel} disabled={saving}>
             Cancel
           </button>
         </div>

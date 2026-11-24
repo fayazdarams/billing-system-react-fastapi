@@ -83,8 +83,15 @@ export default function App() {
         <h1 className="app-heading">Welcome back</h1>
         <p className="app-subheading">Sign in to manage billing, stores and accounts.</p>
         */}
+
         {checking ? null : user ? (
-          <MainApp storeName={user.storeName} username={user.username} onLogout={handleLogout} />
+          <MainApp
+            storenumber={user.storenumber}
+            storeName={user.storeName}
+            username={user.username}
+            onLogout={handleLogout}
+            onToast={showToast}
+          />
         ) : (
           <LoginCard onToast={showToast} onLoginSuccess={setUser} />
         )}

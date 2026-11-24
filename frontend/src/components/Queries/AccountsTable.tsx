@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import AccountForm from "../Forms/AccountForm";
+import type { ToastVariant } from "../../types";
 
 type Row = { id: number; name: string; address: string; mobile: string; balance: number };
 
@@ -10,9 +11,15 @@ const DEMO: Row[] = [
 
 // CHANGE 1: MainApp passes setContentTitle here.
 // AccountTable owns List vs New vs Edit — so it pushes the title up.
-type Props = { onTitle?: (t: string) => void };
+// MainApp also passes onToast — AccountTable just forwards it to AccountForm,
+// it does not show a toast itself.
+type Props = {
+  onTitle?: (t: string) => void;
+  onToast: (message: string, variant: ToastVariant) => void;
+  storenumber: number;
+};
 
-export default function AccountTable({ onTitle }: Props) {
+export default function AccountTable({ onTitle, onToast, storenumber }: Props) {
   const [view, setView] = useState<"list" | "new" | "edit">("list");
   const [fName, setFName] = useState("");
   const [fAddr, setFAddr] = useState("");
@@ -44,9 +51,10 @@ export default function AccountTable({ onTitle }: Props) {
       <AccountForm
         onCancel={handleBack}
         onSave={(v) => {
-          console.log("save", v);
           handleBack();
         }}
+        onToast={onToast}
+        storenumber={storenumber}
       />
     );
   }

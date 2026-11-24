@@ -37,7 +37,7 @@ def register(data: RegisterIn):
     db_host = os.getenv("DEMO_DB_HOST")
     db_user = os.getenv("DEMO_DB_USER")
     db_pass = os.getenv("DEMO_DB_PASSWORD")
-    db_name = "Demo"
+    db_name = os.getenv("DEMO_DB_NAME") 
 
     try:
         with engine.begin() as conn:
@@ -329,7 +329,7 @@ def me(session_id: str | None = Cookie(default=None)):
         with engine.begin() as conn:
             row = conn.execute(
                 text("""
-                    SELECT a.username, a.storename FROM session s
+                    SELECT a.username, a.storenumber, a.storename FROM session s
                     JOIN auth a ON a.id = s.user_id
                     WHERE s.session_value = :sid AND s.valid_upto > now()
                 """),
@@ -337,7 +337,7 @@ def me(session_id: str | None = Cookie(default=None)):
             ).first()
             if not row:
                 raise HTTPException(401, "Session expired. Please login again.")
-            return {"username": row[0], "storeName": row[1]}
+            return {"username": row[0], "storenumber":row[1],"storeName": row[2]}
     except OperationalError as e:
         print(f"DB UNAVAILABLE: {e}")
         raise HTTPException(503, "Database is unavailable. Please try again later.")

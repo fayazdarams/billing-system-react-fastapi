@@ -1,5 +1,6 @@
 import { useState, useRef, useCallback, useEffect } from "react";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import type { ToastVariant } from "../types";
 import {
   faHome,
   faUsers,
@@ -137,13 +138,17 @@ function filterMenus(items: MenuItem[], q: string): MenuItem[] {
 }
 
 export default function MainApp({
-  storeName,
   username,
+  storenumber,
+  storeName,
   onLogout,
+  onToast,
 }: {
-  storeName: string;
   username: string;
+  storeName: string;
+  storenumber: number;
   onLogout: () => void;
+  onToast: (message: string, variant: ToastVariant) => void;
 }) {
   const [active, setActive] = useState("dashboard");
   // CHANGE 1: Title lives here, in MainApp — not in crumbs, not in AccountForm.
@@ -333,7 +338,7 @@ export default function MainApp({
             <Dashboard onOpen={openFromDashboard} />
           ) : active === "account" ? (
             // CHANGE 4: AccountTable owns List vs New vs Edit — it pushes title up.
-            <AccountTable onTitle={setContentTitle} />
+            <AccountTable onTitle={setContentTitle} onToast={onToast} storenumber={storenumber} />
           ) : (
             <div className="placeholder">
               <h1>{contentTitle}</h1>

@@ -11,6 +11,7 @@ import "./LoginCard.css";
 
 export interface LoggedInUser {
   username: string;
+  storenumber: number;
   storeName: string;
 }
 
