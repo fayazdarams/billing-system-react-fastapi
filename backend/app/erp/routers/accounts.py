@@ -5,7 +5,7 @@
 # Deletion rule (decided 2026-11-22):
 #   DELETE is a REAL delete: DELETE FROM accounts WHERE id = ...
 #   BUT every insert / update / delete also writes one row to mutations:
-#     (entity='accounts', entity_key=<account id>, action='inserted'|'updated'|'deleted')
+#     (entity='accounts', entity_key=<account id>, action='insert'|'update'|'delete')
 #   The mutations table is the audit + the delta-feed for the frontend cache.
 #   No is_deleted column, no soft-delete filter anywhere.
 import re
@@ -13,8 +13,9 @@ from decimal import Decimal
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field, field_validator
 from sqlalchemy import text
-from sqlalchemy.exc import IntegrityError, OperationalError, ProgrammingError
+from sqlalchemy.exc import SQLAlchemyError
 from app.services.tenant import get_tenant_db
+from app.db_errors import handle_db_error
 
 router = APIRouter(prefix="/accounts", tags=["accounts"])
 
@@ -47,14 +48,6 @@ def _is_valid_aadhar(v: str) -> bool:
     for i, ch in enumerate(reversed(v)):
         c = _VERHOEFF_D[c][_VERHOEFF_P[i % 8][int(ch)]]
     return c == 0
-
-def _db_error(e: OperationalError):
-    text_e = str(e).lower()
-    if "password authentication failed" in text_e:
-        print(f"DB CONFIG ERROR: {e}")
-        raise HTTPException(500, "Database configuration error. Please contact admin.")
-    print(f"DB UNAVAILABLE: {e}")
-    raise HTTPException(503, "Database is unavailable. Please try again later.")
 
 def _write_mutation(conn, entity_key: int, action: str, storenumber: int):
     """Every insert / update / delete writes one mutation row, same transaction."""
@@ -171,7 +164,7 @@ def _row_to_dict(r) -> dict:
 
 _COLS = "id, storenumber, name, address, mobile, whatsapp, email, aadhar, gstin, pan, opening_balance, opening_balance_type, category, created_at, updated_at"
 
-# ---- Create: INSERT account + INSERT mutation 'inserted', same transaction ----
+# ---- Create: INSERT account + INSERT mutation 'insert', same transaction ----
 @router.post("", status_code=201)
 def create_account(data: AccountIn, db=Depends(get_tenant_db)):
     eng, _ = db
@@ -195,15 +188,16 @@ def create_account(data: AccountIn, db=Depends(get_tenant_db)):
             ).first()
             _write_mutation(conn, row[0], "insert", data.storenumber)
             return _row_to_dict(row)
-    except IntegrityError as e:
-        print(f"DB SCHEMA ERROR: {e}")
-        raise HTTPException(400, "Account already exists")
-    
-    except OperationalError as e:
-        _db_error(e)
-    except ProgrammingError as e:
-        print(f"DB SCHEMA ERROR: {e}")
-        raise HTTPException(500, "Database setup is incomplete. Please contact admin.")
+    except SQLAlchemyError as e:
+        # engine.begin() already rolls back.
+        # handle_db_error walks:
+        # InterfaceError / DatabaseError
+        # -> IntegrityError -> UniqueViolation + constraint_name (mobile / gstin / aadhar / pan / email)
+        # -> IntegrityError -> ForeignKeyViolation / NotNullViolation / CheckViolation
+        # -> OperationalError -> InvalidPassword (28P01) -> 500 config error
+        # -> OperationalError -> ConnectionException -> 503 unavailable
+        # -> ProgrammingError -> UndefinedTable / UndefinedColumn -> 500 setup incomplete
+        handle_db_error(e)
 
 # ---- List: full list, NO soft-delete filter (deleted rows are really gone) ----
 @router.get("")
@@ -216,11 +210,8 @@ def list_accounts(storenumber: int = 1, db=Depends(get_tenant_db)):
                 {"sn": storenumber},
             ).fetchall()
             return [_row_to_dict(r) for r in rows]
-    except OperationalError as e:
-        _db_error(e)
-    except ProgrammingError as e:
-        print(f"DB SCHEMA ERROR: {e}")
-        raise HTTPException(500, "Database setup is incomplete. Please contact admin.")
+    except SQLAlchemyError as e:
+        handle_db_error(e)
 
 # ---- Mutations: delta-feed for the frontend cache. MUST be above /{account_id} ----
 # GET /accounts/mutations?since_id=<cursor> -> all mutations with id > cursor, in order.
@@ -244,11 +235,8 @@ def list_mutations(since_id: int = 0, storenumber: int = 1, db=Depends(get_tenan
                  "storenumber": r[4], "createdAt": r[5].isoformat() if r[5] else None}
                 for r in rows
             ]
-    except OperationalError as e:
-        _db_error(e)
-    except ProgrammingError as e:
-        print(f"DB SCHEMA ERROR: {e}")
-        raise HTTPException(500, "Database setup is incomplete. Please contact admin.")
+    except SQLAlchemyError as e:
+        handle_db_error(e)
 
 # ---- Get one ----
 @router.get("/{account_id}")
@@ -260,16 +248,13 @@ def get_account(account_id: int, storenumber: int = 1, db=Depends(get_tenant_db)
                 text(f"SELECT {_COLS} FROM accounts WHERE id = :id AND storenumber = :sn"),
                 {"id": account_id, "sn": storenumber},
             ).first()
-    except OperationalError as e:
-        _db_error(e)
-    except ProgrammingError as e:
-        print(f"DB SCHEMA ERROR: {e}")
-        raise HTTPException(500, "Database setup is incomplete. Please contact admin.")
+    except SQLAlchemyError as e:
+        handle_db_error(e)
     if not row:
         raise HTTPException(404, "Account not found")
     return _row_to_dict(row)
 
-# ---- Update: UPDATE account + INSERT mutation 'updated', same transaction ----
+# ---- Update: UPDATE account + INSERT mutation 'update', same transaction ----
 @router.put("/{account_id}")
 def update_account(account_id: int, data: AccountIn, db=Depends(get_tenant_db)):
     eng, _ = db
@@ -296,15 +281,10 @@ def update_account(account_id: int, data: AccountIn, db=Depends(get_tenant_db)):
                 raise HTTPException(404, "Account not found")
             _write_mutation(conn, account_id, "update", data.storenumber)
             return _row_to_dict(row)
-    except IntegrityError:
-        raise HTTPException(400, "Account already exists")
-    except OperationalError as e:
-        _db_error(e)
-    except ProgrammingError as e:
-        print(f"DB SCHEMA ERROR: {e}")
-        raise HTTPException(500, "Database setup is incomplete. Please contact admin.")
+    except SQLAlchemyError as e:
+        handle_db_error(e)
 
-# ---- Delete: REAL delete + INSERT mutation 'deleted', same transaction ----
+# ---- Delete: REAL delete + INSERT mutation 'delete', same transaction ----
 @router.delete("/{account_id}")
 def delete_account(account_id: int, storenumber: int = 1, db=Depends(get_tenant_db)):
     eng, _ = db
@@ -317,9 +297,9 @@ def delete_account(account_id: int, storenumber: int = 1, db=Depends(get_tenant_
             if deleted.rowcount == 0:
                 raise HTTPException(404, "Account not found")
             _write_mutation(conn, account_id, "delete", storenumber)
-    except OperationalError as e:
-        _db_error(e)
-    except ProgrammingError as e:
-        print(f"DB SCHEMA ERROR: {e}")
-        raise HTTPException(500, "Database setup is incomplete. Please contact admin.")
+    except SQLAlchemyError as e:
+        # If this account is used in bills / vouchers, Postgres raises
+        # IntegrityError -> ForeignKeyViolation (23503) here.
+        # handle_db_error converts it to 400, not generic 500.
+        handle_db_error(e)
     return {"message": "Account deleted"}

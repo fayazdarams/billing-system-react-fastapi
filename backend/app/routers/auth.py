@@ -4,10 +4,11 @@ import secrets
 from fastapi import APIRouter, HTTPException, Response, Cookie
 from pydantic import BaseModel, Field, field_validator
 from sqlalchemy import text
-from sqlalchemy.exc import OperationalError, IntegrityError
+from sqlalchemy.exc import SQLAlchemyError
 from app.database import engine
 from app.services.security import hash_password, check_password
 from app.services.email import send_otp_email
+from app.db_errors import handle_db_error
 
 router = APIRouter()
 
@@ -37,7 +38,7 @@ def register(data: RegisterIn):
     db_host = os.getenv("DEMO_DB_HOST")
     db_user = os.getenv("DEMO_DB_USER")
     db_pass = os.getenv("DEMO_DB_PASSWORD")
-    db_name = os.getenv("DEMO_DB_NAME") 
+    db_name = os.getenv("DEMO_DB_NAME")
 
     try:
         with engine.begin() as conn:
@@ -70,21 +71,16 @@ def register(data: RegisterIn):
                     "db_host": db_host,
                 },
             )
-    except IntegrityError:
-        raise HTTPException(400, "Username already exists")
-    except OperationalError as e:
-        error_text = str(e).lower()
-        if "password authentication failed" in error_text:
-            print(f"DB CONFIG ERROR: {e}")
-            raise HTTPException(
-                status_code=500,
-                detail="Database configuration error. Please contact admin."
-            )
-        print(f"DB UNAVAILABLE: {e}")
-        raise HTTPException(
-            status_code=503,
-            detail="Database is unavailable. Please try again later."
-        )
+    except SQLAlchemyError as e:
+        # engine.begin() already rolls back on exception.
+        # handle_db_error walks:
+        # InterfaceError / DatabaseError
+        # -> IntegrityError -> UniqueViolation + constraint_name
+        # -> OperationalError -> InvalidPassword (28P01) -> 500 config error
+        # -> OperationalError -> ConnectionException -> 503 unavailable
+        # HTTPException raised inside the try is NOT a SQLAlchemyError,
+        # so it propagates untouched.
+        handle_db_error(e)
 
     return {"message": "User created successfully"}
 
@@ -157,7 +153,6 @@ def forgot_password(data: ForgotPasswordIn):
             )
 
             # 2. Mark remaining pending OTPs (still within 10 min) as 'discarded'
-            
             conn.execute(
                 text("""
                     UPDATE password_reset SET status = 'discarded'
@@ -174,13 +169,8 @@ def forgot_password(data: ForgotPasswordIn):
                 """),
                 {"uid": user_id, "code_hash": hash_password(otp)}
             )
-    except OperationalError as e:
-        error_text = str(e).lower()
-        if "password authentication failed" in error_text:
-            print(f"DB CONFIG ERROR: {e}")
-            raise HTTPException(500, "Database configuration error. Please contact admin.")
-        print(f"DB UNAVAILABLE: {e}")
-        raise HTTPException(503, "Database is unavailable. Please try again later.")
+    except SQLAlchemyError as e:
+        handle_db_error(e)
 
     # Send OTP via email (Resend). If no API key / no email / send fails,
     # fall back to terminal print so local testing still works.
@@ -201,9 +191,9 @@ def verify_code(data: VerifyCodeIn):
             reset_id = _get_valid_reset(conn, user_id, data.code)
             if not reset_id:
                 raise HTTPException(400, "Invalid or expired code")
-           
-            # Only latest stays pending, rest become discarded 
-            # Race condition Two valid OTPS of a user. _get_valid_reset gets latest one. Discard the other(s) 
+
+            # Only latest stays pending, rest become discarded
+            # Race condition Two valid OTPS of a user. _get_valid_reset gets latest one. Discard the other(s)
             conn.execute(
                 text("""
                     UPDATE password_reset SET status = 'discarded'
@@ -211,13 +201,8 @@ def verify_code(data: VerifyCodeIn):
                 """),
                 {"uid": user_id, "rid": reset_id},
             )
-    except OperationalError as e:
-        error_text = str(e).lower()
-        if "password authentication failed" in error_text:
-            print(f"DB CONFIG ERROR: {e}")
-            raise HTTPException(500, "Database configuration error. Please contact admin.")
-        print(f"DB UNAVAILABLE: {e}")
-        raise HTTPException(503, "Database is unavailable. Please try again later.")
+    except SQLAlchemyError as e:
+        handle_db_error(e)
 
     return {"message": "Code verified"}
 
@@ -252,20 +237,18 @@ def reset_password(data: ResetPasswordIn):
                 text("DELETE FROM session WHERE user_id = :uid"),
                 {"uid": user_id},
             )
-    except OperationalError as e:
-        error_text = str(e).lower()
-        if "password authentication failed" in error_text:
-            print(f"DB CONFIG ERROR: {e}")
-            raise HTTPException(500, "Database configuration error. Please contact admin.")
-        print(f"DB UNAVAILABLE: {e}")
-        raise HTTPException(503, "Database is unavailable. Please try again later.")
+    except SQLAlchemyError as e:
+        handle_db_error(e)
 
     return {"message": "Password reset successfully"}
+
+
 # ---------- Login / Session ----------
 
 class LoginIn(BaseModel):
     username: str
     password: str
+
 
 def _get_login_user(conn, username: str):
     row = conn.execute(
@@ -275,6 +258,7 @@ def _get_login_user(conn, username: str):
     if not row:
         return None, None, None
     return row[0], row[1], row[2]
+
 
 @router.post("/login")
 def login(data: LoginIn, response: Response):
@@ -302,13 +286,8 @@ def login(data: LoginIn, response: Response):
                 """),
                 {"uid": user_id, "sval": session_value},
             )
-    except OperationalError as e:
-        error_text = str(e).lower()
-        if "password authentication failed" in error_text:
-            print(f"DB CONFIG ERROR: {e}")
-            raise HTTPException(500, "Database configuration error. Please contact admin.")
-        print(f"DB UNAVAILABLE: {e}")
-        raise HTTPException(503, "Database is unavailable. Please try again later.")
+    except SQLAlchemyError as e:
+        handle_db_error(e)
 
     response.set_cookie(
         key="session_id",
@@ -320,6 +299,7 @@ def login(data: LoginIn, response: Response):
         path="/",
     )
     return {"message": "Login successful"}
+
 
 @router.get("/me")
 def me(session_id: str | None = Cookie(default=None)):
@@ -337,10 +317,10 @@ def me(session_id: str | None = Cookie(default=None)):
             ).first()
             if not row:
                 raise HTTPException(401, "Session expired. Please login again.")
-            return {"username": row[0], "storenumber":row[1],"storeName": row[2]}
-    except OperationalError as e:
-        print(f"DB UNAVAILABLE: {e}")
-        raise HTTPException(503, "Database is unavailable. Please try again later.")
+            return {"username": row[0], "storenumber": row[1], "storeName": row[2]}
+    except SQLAlchemyError as e:
+        handle_db_error(e)
+
 
 @router.post("/logout")
 def logout(response: Response, session_id: str | None = Cookie(default=None)):
@@ -351,7 +331,9 @@ def logout(response: Response, session_id: str | None = Cookie(default=None)):
                     text("DELETE FROM session WHERE session_value = :sid"),
                     {"sid": session_id},
                 )
-        except OperationalError:
+        except SQLAlchemyError:
+            # Logout should succeed even if DB is down.
+            # Swallow any DB error here, not just OperationalError.
             pass
     response.delete_cookie(key="session_id", path="/")
     return {"message": "Logged out"}
