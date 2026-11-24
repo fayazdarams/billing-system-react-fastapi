@@ -13,7 +13,7 @@ import {
   getEmailError,
   getMobileError,
 } from "../../lib/validation";
-import { postJson, getApiErrorMessage } from "../../lib/api";
+import { postJson, getApiErrorStatus, getApiErrorMessage } from "../../lib/api";
 import "./AccountForm.css";
 import type { ToastVariant } from "../../types";
 
@@ -22,6 +22,7 @@ type Props = {
   onCancel: () => void;
   onToast: (message: string, variant: ToastVariant) => void;
   storenumber: number;
+  onSessionExpired: () => void;
 };
 
 interface AccountErrors {
@@ -50,7 +51,7 @@ const emptyErrors: AccountErrors = {
   openingBalanceType: "",
 };
 
-export default function AccountForm({ onSave, onCancel, onToast, storenumber }: Props) {
+export default function AccountForm({ onSave, onCancel, onToast, storenumber, onSessionExpired }: Props) {
   const [name, setName] = useState("");
   const [address, setAddress] = useState("");
   const [mobile, setMobile] = useState("");
@@ -199,6 +200,7 @@ export default function AccountForm({ onSave, onCancel, onToast, storenumber }: 
       }, 0);
     } catch (err) {
       onToast(getApiErrorMessage(err), "error");
+      if (getApiErrorStatus(err) === 401) onSessionExpired();
     } finally {
       setSaving(false);
     }

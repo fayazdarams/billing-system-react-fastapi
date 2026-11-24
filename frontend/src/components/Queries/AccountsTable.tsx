@@ -17,9 +17,10 @@ type Props = {
   onTitle?: (t: string) => void;
   onToast: (message: string, variant: ToastVariant) => void;
   storenumber: number;
+  onSessionExpired: () => void;
 };
 
-export default function AccountTable({ onTitle, onToast, storenumber }: Props) {
+export default function AccountTable({ onTitle, onToast, storenumber, onSessionExpired }: Props) {
   const [view, setView] = useState<"list" | "new" | "edit">("list");
   const [fName, setFName] = useState("");
   const [fAddr, setFAddr] = useState("");
@@ -55,6 +56,7 @@ export default function AccountTable({ onTitle, onToast, storenumber }: Props) {
         }}
         onToast={onToast}
         storenumber={storenumber}
+        onSessionExpired={onSessionExpired}
       />
     );
   }

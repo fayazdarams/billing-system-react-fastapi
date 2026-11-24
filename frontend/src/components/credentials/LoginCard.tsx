@@ -48,7 +48,6 @@ export default function LoginCard({ onToast, onLoginSuccess }: LoginCardProps) {
     try {
       await postJson("/login", { username: uname.trim(), password: pswd });
       const me = (await getJson("/me")) as LoggedInUser;
-      onToast("Login successful - redirecting...", "success");
       onLoginSuccess(me);
     } catch (error) {
       onToast(getApiErrorMessage(error), "error");

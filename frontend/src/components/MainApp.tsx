@@ -143,12 +143,14 @@ export default function MainApp({
   storeName,
   onLogout,
   onToast,
+  onSessionExpired,
 }: {
   username: string;
   storeName: string;
   storenumber: number;
   onLogout: () => void;
   onToast: (message: string, variant: ToastVariant) => void;
+  onSessionExpired: () => void;
 }) {
   const [active, setActive] = useState("dashboard");
   // CHANGE 1: Title lives here, in MainApp — not in crumbs, not in AccountForm.
@@ -338,7 +340,12 @@ export default function MainApp({
             <Dashboard onOpen={openFromDashboard} />
           ) : active === "account" ? (
             // CHANGE 4: AccountTable owns List vs New vs Edit — it pushes title up.
-            <AccountTable onTitle={setContentTitle} onToast={onToast} storenumber={storenumber} />
+            <AccountTable
+              onTitle={setContentTitle}
+              storenumber={storenumber}
+              onToast={onToast}
+              onSessionExpired={onSessionExpired}
+            />
           ) : (
             <div className="placeholder">
               <h1>{contentTitle}</h1>

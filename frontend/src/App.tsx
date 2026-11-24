@@ -1,8 +1,19 @@
+/* App.tsx does not show login screen if back-end or database is down
+   This covers our scenerio 
+   1. User logged in Browser TAB-1
+   2. shutdown back-end/database
+   3. open site in Browser TAB-2
+   4. App.tsx earlier was presenting login screen
+   5. Start back-end/database
+   6. Login again. Login successful. New httpOnly session key issued. TAB-1 silently uses new httpOnly
+   7. It is logical to show login screen only if the user is not logged in. 
+*/
+
 import { useCallback, useEffect, useState, useRef } from "react";
 import LoginCard, { type LoggedInUser } from "./components/credentials/LoginCard";
 import MainApp from "./components/MainApp";
 import Toast from "./components/shared/Toast";
-import { getJson, postJson } from "./lib/api";
+import { getJson, postJson, getApiErrorStatus } from "./lib/api";
 import type { ToastItem, ToastVariant } from "./types";
 import "./index.css";
 
@@ -15,12 +26,20 @@ export default function App() {
   // --- Login / Auto-login (added, rest untouched) ---
   const [user, setUser] = useState<LoggedInUser | null>(null);
   const [checking, setChecking] = useState(true);
+  const [bkdbDown, setbkdbDown] = useState(false); //bkdbDown - Backend or database is down
 
   // Auto-login: on app load, ask backend if HttpOnly cookie is still valid
   useEffect(() => {
     getJson("/me")
       .then((data) => setUser(data as LoggedInUser))
-      .catch(() => setUser(null))
+      .catch((error) => {
+        setUser(null);
+        if (getApiErrorStatus(error) === 401) setbkdbDown(false);
+        else {
+          showToast("BackEnd / Database is unavailable. Please try again.", "error");
+          setbkdbDown(true);
+        }
+      })
       .finally(() => setChecking(false));
   }, []);
 
@@ -84,13 +103,60 @@ export default function App() {
         <p className="app-subheading">Sign in to manage billing, stores and accounts.</p>
         */}
 
-        {checking ? null : user ? (
+        {checking ? (
+          <div
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: "12px",
+              height: "100%",
+              minHeight: "60vh",
+            }}>
+            <div
+              style={{
+                width: "40px",
+                height: "40px",
+                borderRadius: "50%",
+                border: "4px solid #ddd",
+                borderTopColor: "#333",
+                animation: "spin 0.8s linear infinite",
+              }}
+            />
+            <p>Loading...</p>
+          </div>
+        ) : bkdbDown ? (
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              height: "100%",
+              minHeight: "60vh",
+            }}>
+            <button
+              onClick={() => window.location.reload()}
+              style={{
+                padding: "16px 48px",
+                fontSize: "18px",
+                fontWeight: 600,
+                borderRadius: "10px",
+                cursor: "pointer",
+              }}>
+              Retry
+            </button>
+          </div>
+        ) : user ? (
           <MainApp
             storenumber={user.storenumber}
             storeName={user.storeName}
             username={user.username}
             onLogout={handleLogout}
             onToast={showToast}
+            onSessionExpired={() => {
+              setUser(null);
+            }}
           />
         ) : (
           <LoginCard onToast={showToast} onLoginSuccess={setUser} />
