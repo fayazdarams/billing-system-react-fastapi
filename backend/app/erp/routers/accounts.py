@@ -201,6 +201,7 @@ def create_account(data: AccountIn, db=Depends(get_tenant_db)):
 
 # ---- List: full list, NO soft-delete filter (deleted rows are really gone) ----
 @router.get("")
+@router.get("")
 def list_accounts(storenumber: int = 1, db=Depends(get_tenant_db)):
     eng, _ = db
     try:
@@ -209,7 +210,13 @@ def list_accounts(storenumber: int = 1, db=Depends(get_tenant_db)):
                 text(f"SELECT {_COLS} FROM accounts WHERE storenumber = :sn ORDER BY id"),
                 {"sn": storenumber},
             ).fetchall()
-            return [_row_to_dict(r) for r in rows]
+
+            last_id = conn.execute(
+                text("SELECT COALESCE(MAX(id), 0) FROM mutations WHERE entity = 'accounts' AND storenumber = :sn"),
+                {"sn": storenumber},
+            ).scalar()
+
+            return {"accounts": [_row_to_dict(r) for r in rows], "lastMutationId": last_id}
     except SQLAlchemyError as e:
         handle_db_error(e)
 
