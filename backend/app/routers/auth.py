@@ -14,7 +14,7 @@ router = APIRouter()
 
 
 class RegisterIn(BaseModel):
-    username: str = Field(max_length=5)
+    username: str = Field(min_length=5, max_length=10)
     password: str = Field(max_length=8)
     confirmPassword: str = Field(max_length=8)
     storeName: str
@@ -24,11 +24,10 @@ class RegisterIn(BaseModel):
 
     @field_validator("username")
     @classmethod
-    def username_must_be_5_lowercase(cls, v: str):
-        if len(v) != 5 or not re.fullmatch(r"[a-z]{5}", v):
-            raise ValueError("Username must be 5 lowercase letters (a-z)")
+    def username_must_have_no_spaces(cls, v: str):
+        if not re.fullmatch(r"[A-Za-z0-9._-]+", v):
+            raise ValueError("Username cannot contain spaces. Use letters, numbers, . _ - only.")
         return v
-
 
 @router.post("/register")
 def register(data: RegisterIn):
@@ -119,7 +118,7 @@ def _get_valid_reset(conn, user_id: int, code: str):
     row = conn.execute(
         text("""
             SELECT id, code_hash FROM password_reset
-            WHERE user_id = :uid AND status = 'pending' AND expires_at > now()
+            WHERE user_id = :uid AND status = 'pending' AND valid_upto > now()
             ORDER BY created_at DESC LIMIT 1
         """),
         {"uid": user_id},
@@ -147,7 +146,7 @@ def forgot_password(data: ForgotPasswordIn):
             conn.execute(
                 text("""
                     UPDATE password_reset SET status = 'expired'
-                    WHERE user_id = :uid AND status = 'pending' AND expires_at <= now()
+                    WHERE user_id = :uid AND status = 'pending' AND valid_upto <= now()
                 """),
                 {"uid": user_id},
             )
@@ -164,7 +163,7 @@ def forgot_password(data: ForgotPasswordIn):
             # 3. Insert new OTP as 'pending'
             conn.execute(
                 text("""
-                    INSERT INTO password_reset (user_id, code_hash, expires_at, status)
+                    INSERT INTO password_reset (user_id, code_hash, valid_upto, status)
                     VALUES (:uid, :code_hash, now() + interval '10 minutes', 'pending')
                 """),
                 {"uid": user_id, "code_hash": hash_password(otp)}
@@ -252,31 +251,44 @@ class LoginIn(BaseModel):
 
 def _get_login_user(conn, username: str):
     row = conn.execute(
-        text("SELECT id, password_hash, validupto FROM auth WHERE username = :u"),
+        text("SELECT id, password_hash, valid_upto FROM auth WHERE username = :u"),
         {"u": username},
     ).first()
     if not row:
         return None, None, None
     return row[0], row[1], row[2]
 
+def _cleanup():
+    try:
+        with engine.begin() as conn:  # <-- separate transaction, commits on exit
+            conn.execute(text("DELETE FROM password_reset WHERE valid_upto < NOW()"))
+            conn.execute(text("DELETE FROM session WHERE valid_upto < NOW()"))
+    except SQLAlchemyError as e:
+        # Ignore, but LOG it - otherwise you will never know
+        # if the column name is wrong again
+        print(f"cleanup failed: {e}")
 
 @router.post("/login")
 def login(data: LoginIn, response: Response):
+    _cleanup() 
     try:
         with engine.begin() as conn:
-            user_id, password_hash, validupto = _get_login_user(conn, data.username)
+            user_id, password_hash, valid_upto = _get_login_user(conn, data.username)
             if not user_id:
                 raise HTTPException(400, "Invalid username or password")
             if not check_password(data.password, password_hash):
                 raise HTTPException(400, "Invalid username or password")
 
-            # validupto is DATE — must be >= today, NULL = expired
+            # valid_upto is DATE — must be >= today, NULL = expired
             is_valid = conn.execute(
                 text("SELECT :v IS NOT NULL AND :v >= CURRENT_DATE"),
-                {"v": validupto},
+                {"v": valid_upto},
             ).scalar()
             if not is_valid:
                 raise HTTPException(400, "Your account has expired. Please contact admin.")
+
+
+            conn.execute(text("""DELETE FROM session WHERE valid_upto < NOW()"""))
 
             session_value = secrets.token_urlsafe(32)
             conn.execute(
@@ -286,6 +298,7 @@ def login(data: LoginIn, response: Response):
                 """),
                 {"uid": user_id, "sval": session_value},
             )
+            
     except SQLAlchemyError as e:
         handle_db_error(e)
 

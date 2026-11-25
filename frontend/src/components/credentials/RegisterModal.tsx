@@ -189,7 +189,7 @@ export default function RegisterModal({ open, onClose, onToast }: RegisterModalP
                 error={shown(errors.username)}
                 required
                 autoComplete="username"
-                maxLength={5}
+                maxLength={10}
                 autoFocus
               />
               <Field

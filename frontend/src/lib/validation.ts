@@ -12,10 +12,13 @@ export function isValidEmail(value: string): boolean {
 }
 
 export function getUsernameError(value: string): string {
+  if (!value) return "Please enter User Name";
+  if (value !== value.trim()) return "Username cannot start or end with a space";
+
   const v = value.trim();
-  if (!v) return "Please enter User Name";
-  if (v.length !== 5) return "Username must be 5 characters long";
-  if (!/^[a-z]{5}$/.test(v)) return "Username must be 5 lowercase letters (a-z)";
+  if (v.length < 5) return "Username must be at least 5 characters long";
+  if (v.length > 10) return "Username must be at most 10 characters long";
+  if (!/^[A-Za-z0-9._-]+$/.test(v)) return "Username cannot contain spaces. Use letters, numbers, . _ - only.";
   return "";
 }
 

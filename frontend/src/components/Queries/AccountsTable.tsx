@@ -52,7 +52,7 @@ export default function AccountTable({ onTitle, onToast, storenumber, onSessionE
       <AccountForm
         onCancel={handleBack}
         onSave={(v) => {
-          handleBack();
+          //handleBack();
         }}
         onToast={onToast}
         storenumber={storenumber}
