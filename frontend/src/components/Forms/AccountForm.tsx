@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
+import ConfirmDialog from "../shared/ConfirmDialog";
 import type { FormEvent } from "react";
 import Field from "../shared/Field";
 import { handleEnterAsTab } from "../../lib/enterAsTab";
@@ -66,6 +67,40 @@ export default function AccountForm({ onSave, onCancel, onToast, storenumber, on
   const [submitted, setSubmitted] = useState(false);
   const [saving, setSaving] = useState(false);
   const shown = (msg: string) => (submitted ? msg : "");
+  const [showConfirm, setShowConfirm] = useState(false);
+  const formRef = useRef<HTMLFormElement>(null);
+  const isDirty =
+    name.trim() !== "" ||
+    address.trim() !== "" ||
+    mobile.trim() !== "" ||
+    whatsapp.trim() !== "" ||
+    email.trim() !== "" ||
+    aadhar.trim() !== "" ||
+    gstin.trim() !== "" ||
+    pan.trim() !== "" ||
+    openingBalance.trim() !== "0" ||
+    openingBalanceType !== "Dr";
+
+  function handleCancelClick() {
+    if (!isDirty) {
+      onCancel(); // empty form → close immediately, no dialog
+      return;
+    }
+    setShowConfirm(true); // dirty form → blocking dialog
+  }
+
+  function handleConfirmYes() {
+    setShowConfirm(false);
+    // YES = "save it" → submit the form. Validation errors (if any)
+    // will show in the form, form stays open.
+    formRef.current?.requestSubmit();
+  }
+
+  function handleConfirmNo() {
+    setShowConfirm(false);
+    resetForm();
+    onCancel(); // NO = "discard it" → close without saving
+  }
 
   function resetForm() {
     setName("");
@@ -208,7 +243,7 @@ export default function AccountForm({ onSave, onCancel, onToast, storenumber, on
 
   return (
     <div className="account-page">
-      <form onSubmit={handleSubmit} onKeyDown={handleEnterAsTab} noValidate>
+      <form ref={formRef} onSubmit={handleSubmit} onKeyDown={handleEnterAsTab} noValidate>
         <div className="account-grid">
           {/* Col 1 — General */}
           <fieldset className="account-column">
@@ -334,11 +369,21 @@ export default function AccountForm({ onSave, onCancel, onToast, storenumber, on
           <button type="submit" className="primary-button" disabled={saving}>
             {saving ? "Saving..." : "Save"}
           </button>
-          <button type="button" className="secondary-button" onClick={onCancel} disabled={saving}>
+          <button type="button" className="secondary-button" onClick={handleCancelClick} disabled={saving}>
             Cancel
           </button>
         </div>
       </form>
+      {showConfirm && (
+        <ConfirmDialog
+          title="Save Changes"
+          message="Do you want to save changes?"
+          yesLabel="YES"
+          noLabel="NO"
+          onYes={handleConfirmYes}
+          onNo={handleConfirmNo}
+        />
+      )}
     </div>
   );
 }

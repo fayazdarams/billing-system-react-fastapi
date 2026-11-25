@@ -1,6 +1,7 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import type { FormEvent } from "react";
 import Field from "../shared/Field";
+import ConfirmDialog from "../shared/ConfirmDialog";
 import { handleEnterAsTab } from "../../lib/enterAsTab";
 import { postJson, getApiErrorMessage } from "../../lib/api";
 import {
@@ -54,8 +55,40 @@ export default function RegisterModal({ open, onClose, onToast }: RegisterModalP
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
+  const formRef = useRef<HTMLFormElement>(null);
+  const isDirty =
+    username.trim() !== "" ||
+    password.trim() !== "" ||
+    confirmPassword.trim() !== "" ||
+    storeName.trim() !== "" ||
+    mobile.trim() !== "" ||
+    whatsapp.trim() !== "" ||
+    email.trim() !== "";
 
   if (!open) return null;
+
+  function handleCancelClick() {
+    if (!isDirty) {
+      resetForm();
+      onClose();
+      return;
+    }
+    setShowConfirm(true); // dirty form → blocking dialog
+  }
+
+  function handleConfirmYes() {
+    setShowConfirm(false);
+    // YES = "save it" → submit the form. Validation errors (if any)
+    // will show in the form, form stays open.
+    formRef.current?.requestSubmit();
+  }
+
+  function handleConfirmNo() {
+    setShowConfirm(false);
+    resetForm();
+    onClose();
+  }
 
   function resetForm() {
     setUsername("");
@@ -156,18 +189,15 @@ export default function RegisterModal({ open, onClose, onToast }: RegisterModalP
 
       onToast(data.message, "success");
       resetForm();
-      onClose();
+      setTimeout(() => {
+        form.querySelector<HTMLElement>("#register-username")?.focus();
+      }, 0);
     } catch (error) {
       onToast(getApiErrorMessage(error), "error");
     } finally {
       clearTimeout(timeoutId);
       setLoading(false);
     }
-  }
-
-  function handleCancel() {
-    resetForm();
-    onClose();
   }
 
   const shown = (msg: string) => (submitted ? msg : "");
@@ -178,7 +208,7 @@ export default function RegisterModal({ open, onClose, onToast }: RegisterModalP
         <h2 className="modal-title" id="register-title">
           New User Registration Form
         </h2>
-        <form onSubmit={handleSubmit} onKeyDown={handleEnterAsTab} noValidate>
+        <form ref={formRef} onSubmit={handleSubmit} onKeyDown={handleEnterAsTab} noValidate>
           <div className="register-grid">
             <div className="register-column">
               <Field
@@ -268,11 +298,21 @@ export default function RegisterModal({ open, onClose, onToast }: RegisterModalP
             <button type="submit" className="primary-button" disabled={loading}>
               Submit
             </button>
-            <button type="button" className="secondary-button" onClick={handleCancel} disabled={loading}>
+            <button type="button" className="secondary-button" onClick={handleCancelClick} disabled={loading}>
               Cancel
             </button>
           </div>
         </form>
+        {showConfirm && (
+          <ConfirmDialog
+            title="Save Changes"
+            message="Do you want to save changes?"
+            yesLabel="YES"
+            noLabel="NO"
+            onYes={handleConfirmYes}
+            onNo={handleConfirmNo}
+          />
+        )}
       </div>
     </div>
   );
