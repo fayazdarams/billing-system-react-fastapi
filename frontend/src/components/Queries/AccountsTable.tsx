@@ -27,9 +27,10 @@ type Props = {
 // UI state that survives unmount - same idea as data cache.
 // Form itself unmounts (cost 0), scroll + filter are restored on return.
 let savedFilterModel: Record<string, unknown> | null = null;
-let savedColumnState: any | null = null; // full state: order + width + sort
+let savedColumnState: any | null = null; // ✅ FIX - full state: order + width + sort, not just sort
 let savedFirstRow = 0;
-let savedSelectedId: number | null = null; // ✅ FIX - selected row
+let savedScrollTop = 0; // ✅ FIX - vertical scroll, exact pixel
+let savedScrollLeft = 0; // ✅ FIX - horizontal scroll, exact pixel
 let savedEditingId: number | null = null;
 
 const DEFAULT_COL_DEF = { sortable: true, resizable: true, filterParams: { debounceMs: 0 } }; // AG Grid default is 500ms - that is the felt lag
@@ -166,17 +167,17 @@ export default function AccountsTable({ onTitle, onToast, storenumber, onSession
   function saveUiState() {
     if (!gridApi.current) return;
     savedFilterModel = gridApi.current.getFilterModel();
-    savedColumnState = gridApi.current.getColumnState(); // order + width + sort
+    savedColumnState = gridApi.current.getColumnState(); // ✅ order + width + sort
     savedFirstRow = gridApi.current.getFirstDisplayedRowIndex();
-    // ✅ Selection is saved in onSelectionChanged, not here — saveUiState runs on
-    // double-click too, when selection is already the double-clicked row.
+    savedScrollTop = gridApi.current.getVerticalPixelRange()?.top ?? 0; // ✅ vertical
+    savedScrollLeft = gridApi.current.getHorizontalPixelRange()?.left ?? 0; // ✅ horizontal
   }
 
   function restoreUiState(api: GridApi) {
     if (restored.current) return;
     if (savedFilterModel) api.setFilterModel(savedFilterModel);
     if (savedColumnState) {
-      api.applyColumnState({ state: savedColumnState, applyOrder: true }); // restores order + width + sort
+      api.applyColumnState({ state: savedColumnState, applyOrder: true }); // ✅ restores order + width + sort
     }
     // Guard: on first open rows arrive AFTER onGridReady (async sync).
     // Grid has 0 rows then, so scroll restore is invalid -> warning #88.
@@ -184,33 +185,21 @@ export default function AccountsTable({ onTitle, onToast, storenumber, onSession
     const count = api.getDisplayedRowCount();
     if (count === 0) return;
     restored.current = true;
-
-    // ✅ Vertical scroll — ensureIndexVisible with retry, not pixel.
-    // Pixel scrollTop gets overwritten by AG Grid on next render.
-    const idx = Math.min(Math.max(0, savedFirstRow), count - 1);
-    setTimeout(() => api.ensureIndexVisible(idx, "top"), 50);
-    setTimeout(() => api.ensureIndexVisible(idx, "top"), 200);
-
-    // ✅ Selected row — restore selection
-    if (savedSelectedId != null) {
-      const node = api.getRowNode(String(savedSelectedId));
-      if (node) {
-        node.setSelected(true);
-        // Selection also brings row into view if scroll restore missed
-        setTimeout(() => api.ensureIndexVisible(node.rowIndex, "middle"), 200);
+    setTimeout(() => {
+      // ✅ Vertical — exact pixel, not just ensureIndexVisible
+      (api as any).setVerticalPixelRange?.(savedScrollTop);
+      const bodyViewport = document.querySelector(".ag-body-viewport");
+      if (bodyViewport) bodyViewport.scrollTop = savedScrollTop;
+      // ✅ Horizontal — exact pixel
+      (api as any).setHorizontalPixelRange?.(savedScrollLeft);
+      const hViewport = document.querySelector(".ag-body-horizontal-scroll-viewport");
+      if (hViewport) hViewport.scrollLeft = savedScrollLeft;
+      // Fallback: if pixel was 0 (first open), ensure first saved row is visible
+      if (savedScrollTop === 0 && savedFirstRow > 0) {
+        const idx = Math.min(Math.max(0, savedFirstRow), count - 1);
+        api.ensureIndexVisible(idx, "top");
       }
-    }
-  }
-
-  function handleResetColumns() {
-    savedFilterModel = null;
-    savedColumnState = null;
-    savedFirstRow = 0;
-    savedSelectedId = null;
-    gridApi.current?.resetColumnState();
-    gridApi.current?.setFilterModel(null);
-    gridApi.current?.deselectAll();
-    refreshFromCache();
+    }, 0);
   }
 
   function handleNew() {
@@ -227,7 +216,6 @@ export default function AccountsTable({ onTitle, onToast, storenumber, onSession
     if (!id) return;
     saveUiState();
     savedEditingId = id;
-    savedSelectedId = id; // ✅ double-clicked row is also the selected row
     setLoading(true);
     try {
       await syncAccounts(storenumber);
@@ -287,9 +275,6 @@ export default function AccountsTable({ onTitle, onToast, storenumber, onSession
         <button type="button" className="secondary-button" onClick={openList} disabled={loading}>
           {loading ? "Loading..." : "Refresh"}
         </button>
-        <button type="button" className="secondary-button" onClick={handleResetColumns}>
-          Reset Columns
-        </button>
         <span className="accounts-query-count">{rows.length} accounts</span>
       </div>
       <div className="accounts-grid">
@@ -300,7 +285,6 @@ export default function AccountsTable({ onTitle, onToast, storenumber, onSession
           rowHeight={30}
           headerHeight={35}
           getRowId={(p) => String(p.data.id)}
-          suppressDragLeaveHidesColumns={true} // ✅ drag header outside does NOT hide column
           onGridReady={(e) => {
             gridApi.current = e.api;
             restoreUiState(e.api);
@@ -314,17 +298,12 @@ export default function AccountsTable({ onTitle, onToast, storenumber, onSession
             gridApi.current?.refreshCells({ columns: ["serial"], force: true });
           }}
           onSortChanged={(e) => {
-            saveUiState(); // saves full column state, not just sort
+            saveUiState(); // ✅ saves full column state, not just sort
             // ✅ Recalculate serials after sort
             e.api.refreshCells({ columns: ["serial"], force: true });
           }}
-          onColumnMoved={() => saveUiState()} // column position
-          onColumnResized={() => saveUiState()} // field size / width
-          onSelectionChanged={(e) => {
-            // ✅ Selected row — save on every single click
-            const selected = e.api.getSelectedRows();
-            savedSelectedId = selected[0]?.id ?? null;
-          }}
+          onColumnMoved={() => saveUiState()} // ✅ column position
+          onColumnResized={() => saveUiState()} // ✅ field size / width
           rowSelection={{ mode: "singleRow" }}
         />
       </div>
