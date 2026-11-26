@@ -49,12 +49,6 @@ def _is_valid_aadhar(v: str) -> bool:
         c = _VERHOEFF_D[c][_VERHOEFF_P[i % 8][int(ch)]]
     return c == 0
 
-def _write_mutation(conn, entity_key: int, action: str, storenumber: int):
-    """Every insert / update / delete writes one mutation row, same transaction."""
-    conn.execute(
-        text("INSERT INTO mutations (entity, entity_key, action, storenumber) VALUES ('accounts', :k, :a, :sn)"),
-        {"k": entity_key, "a": action, "sn": storenumber},
-    )
 
 # ---- Schemas - mirrors frontend validation.ts + AccountForm ----
 class AccountIn(BaseModel):
@@ -186,7 +180,6 @@ def create_account(data: AccountIn, db=Depends(get_tenant_db)):
                     "opening_balance": data.openingBalance, "opening_balance_type": data.openingBalanceType,
                 },
             ).first()
-            _write_mutation(conn, row[0], "insert", data.storenumber)
             return _row_to_dict(row)
     except SQLAlchemyError as e:
         # engine.begin() already rolls back.
@@ -199,17 +192,64 @@ def create_account(data: AccountIn, db=Depends(get_tenant_db)):
         # -> ProgrammingError -> UndefinedTable / UndefinedColumn -> 500 setup incomplete
         handle_db_error(e)
 
-# ---- List: full list, NO soft-delete filter (deleted rows are really gone) ----
-@router.get("")
-@router.get("")
-def list_accounts(storenumber: int = 1, db=Depends(get_tenant_db)):
+
+# Fetch only latest mutations per entity 
+@router.get("/mutations")
+def list_mutations(entity: str, since_id: int = 0, storenumber: int = 1, db=Depends(get_tenant_db)):
     eng, _ = db
+    if entity not in ("accounts", "items"):
+        raise HTTPException(status_code=400, detail="Invalid entity")
     try:
         with eng.connect() as conn:
             rows = conn.execute(
-                text(f"SELECT {_COLS} FROM accounts WHERE storenumber = :sn ORDER BY id"),
-                {"sn": storenumber},
+                text("""
+                    SELECT * FROM (
+                                    SELECT DISTINCT ON (entity_key) id, entity_key, action
+                                    FROM mutations
+                                    WHERE entity = :entity AND storenumber = :sn AND id > :since
+                                    ORDER BY entity_key, id DESC
+                    ) latest
+                    ORDER BY id
+                """),
+                {"entity":entity,"sn": storenumber, "since": since_id},
             ).fetchall()
+            return [
+                {"id": r[0], "entityKey": r[1], "action": r[2]}
+                for r in rows
+            ]
+    except SQLAlchemyError as e:
+        handle_db_error(e)
+
+
+# List Accounts: if id is null fetch all accounts
+# if one are multiple ids fetch that/those prticular accounts
+
+@router.get("")
+def list_accounts(
+    storenumber: int = 1,
+    ids: str | None = None,   # None = all, "5,7" = only those
+    db=Depends(get_tenant_db),
+):
+    eng, _ = db
+    try:
+        with eng.connect() as conn:
+            # Batch case: ids="5,7" -> [5, 7]
+            id_list = None
+            if ids is not None:
+                id_list = [int(x) for x in ids.split(",") if x.strip().isdigit()]
+                if not id_list:
+                    return {"accounts": [], "lastMutationId": 0}
+
+            if id_list is not None:
+                rows = conn.execute(
+                    text(f"SELECT {_COLS} FROM accounts WHERE storenumber = :sn AND id = ANY(:ids) ORDER BY id"),
+                    {"sn": storenumber, "ids": id_list},
+                ).fetchall()
+            else:
+                rows = conn.execute(
+                    text(f"SELECT {_COLS} FROM accounts WHERE storenumber = :sn ORDER BY id"),
+                    {"sn": storenumber},
+                ).fetchall()
 
             last_id = conn.execute(
                 text("SELECT COALESCE(MAX(id), 0) FROM mutations WHERE entity = 'accounts' AND storenumber = :sn"),
@@ -220,30 +260,7 @@ def list_accounts(storenumber: int = 1, db=Depends(get_tenant_db)):
     except SQLAlchemyError as e:
         handle_db_error(e)
 
-# ---- Mutations: delta-feed for the frontend cache. MUST be above /{account_id} ----
-# GET /accounts/mutations?since_id=<cursor> -> all mutations with id > cursor, in order.
-# Cursor = last mutation id your cache has already applied (see below).
-@router.get("/mutations")
-def list_mutations(since_id: int = 0, storenumber: int = 1, db=Depends(get_tenant_db)):
-    eng, _ = db
-    try:
-        with eng.connect() as conn:
-            rows = conn.execute(
-                text("""
-                    SELECT id, entity, entity_key, action, storenumber, created_at
-                    FROM mutations
-                    WHERE entity = 'accounts' AND storenumber = :sn AND id > :since
-                    ORDER BY id
-                """),
-                {"sn": storenumber, "since": since_id},
-            ).fetchall()
-            return [
-                {"id": r[0], "entity": r[1], "entityKey": r[2], "action": r[3],
-                 "storenumber": r[4], "createdAt": r[5].isoformat() if r[5] else None}
-                for r in rows
-            ]
-    except SQLAlchemyError as e:
-        handle_db_error(e)
+
 
 # ---- Get one ----
 @router.get("/{account_id}")
@@ -286,7 +303,6 @@ def update_account(account_id: int, data: AccountIn, db=Depends(get_tenant_db)):
             ).first()
             if not row:
                 raise HTTPException(404, "Account not found")
-            _write_mutation(conn, account_id, "update", data.storenumber)
             return _row_to_dict(row)
     except SQLAlchemyError as e:
         handle_db_error(e)
@@ -303,7 +319,6 @@ def delete_account(account_id: int, storenumber: int = 1, db=Depends(get_tenant_
             )
             if deleted.rowcount == 0:
                 raise HTTPException(404, "Account not found")
-            _write_mutation(conn, account_id, "delete", storenumber)
     except SQLAlchemyError as e:
         # If this account is used in bills / vouchers, Postgres raises
         # IntegrityError -> ForeignKeyViolation (23503) here.

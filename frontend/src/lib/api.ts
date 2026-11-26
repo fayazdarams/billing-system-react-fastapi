@@ -45,6 +45,29 @@ export async function postJson(path: string, body: unknown) {
   }
 }
 
+export async function putJson(path: string, body: unknown) {
+  const controller = new AbortController();
+  const timeout = window.setTimeout(() => controller.abort(), 10000);
+  try {
+    const res = await fetch(`${API_URL}${path}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+      credentials: "include",
+      signal: controller.signal,
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      const err = new Error(extractDetail(data));
+      (err as any).status = res.status; // ← keep 401, don't dispatch
+      throw err;
+    }
+    return data;
+  } finally {
+    window.clearTimeout(timeout);
+  }
+}
+
 export async function getJson(path: string) {
   const controller = new AbortController();
   const timeout = window.setTimeout(() => controller.abort(), 10000);

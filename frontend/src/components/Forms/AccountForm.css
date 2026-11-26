@@ -68,6 +68,10 @@
   flex: 0 0 96px;
 }
 
+.primary-button.is-saving:disabled,
+.secondary-button.is-saving:disabled {
+  cursor: wait;
+}
 
 
 /* 2 columns: 2 + 2 */

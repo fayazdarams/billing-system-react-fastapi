@@ -14,12 +14,24 @@ import {
   getEmailError,
   getMobileError,
 } from "../../lib/validation";
-import { postJson, getApiErrorStatus, getApiErrorMessage } from "../../lib/api";
+import { postJson, putJson, getApiErrorStatus, getApiErrorMessage } from "../../lib/api";
 import "./AccountForm.css";
 import type { ToastVariant } from "../../types";
 
 type Props = {
-  onSave: (v: any) => void;
+  initialAccount?: {
+    id: number;
+    name: string;
+    address: string;
+    mobile: string;
+    whatsapp: string;
+    email: string | null;
+    aadhar: string | null;
+    gstin: string | null;
+    pan: string | null;
+    openingBalance: string;
+    openingBalanceType: string;
+  };
   onCancel: () => void;
   onToast: (message: string, variant: ToastVariant) => void;
   storenumber: number;
@@ -52,67 +64,84 @@ const emptyErrors: AccountErrors = {
   openingBalanceType: "",
 };
 
-export default function AccountForm({ onSave, onCancel, onToast, storenumber, onSessionExpired }: Props) {
-  const [name, setName] = useState("");
-  const [address, setAddress] = useState("");
-  const [mobile, setMobile] = useState("");
-  const [whatsapp, setWhatsapp] = useState("");
-  const [email, setEmail] = useState("");
-  const [aadhar, setAadhar] = useState("");
-  const [gstin, setGstin] = useState("");
-  const [pan, setPan] = useState("");
-  const [openingBalance, setOpeningBalance] = useState("0");
-  const [openingBalanceType, setOpeningBalanceType] = useState("Dr");
+export default function AccountForm({ initialAccount, onCancel, onToast, storenumber, onSessionExpired }: Props) {
+  const isEditing = Boolean(initialAccount?.id);
+
+  // FIX 1: state starts from initialAccount, not "". Edit opens pre-filled.
+  const [name, setName] = useState(initialAccount?.name ?? "");
+  const [address, setAddress] = useState(initialAccount?.address ?? "");
+  const [mobile, setMobile] = useState(initialAccount?.mobile ?? "");
+  const [whatsapp, setWhatsapp] = useState(initialAccount?.whatsapp ?? "");
+  const [email, setEmail] = useState(initialAccount?.email ?? "");
+  const [aadhar, setAadhar] = useState(initialAccount?.aadhar ?? "");
+  const [gstin, setGstin] = useState(initialAccount?.gstin ?? "");
+  const [pan, setPan] = useState(initialAccount?.pan ?? "");
+  const [openingBalance, setOpeningBalance] = useState(initialAccount?.openingBalance ?? "0");
+  const [openingBalanceType, setOpeningBalanceType] = useState(initialAccount?.openingBalanceType ?? "Dr");
   const [errors, setErrors] = useState<AccountErrors>(emptyErrors);
   const [submitted, setSubmitted] = useState(false);
   const [saving, setSaving] = useState(false);
   const shown = (msg: string) => (submitted ? msg : "");
   const [showConfirm, setShowConfirm] = useState(false);
   const formRef = useRef<HTMLFormElement>(null);
+
+  const [base, setBase] = useState({
+    name: initialAccount?.name ?? "",
+    address: initialAccount?.address ?? "",
+    mobile: initialAccount?.mobile ?? "",
+    whatsapp: initialAccount?.whatsapp ?? "",
+    email: initialAccount?.email ?? "",
+    aadhar: initialAccount?.aadhar ?? "",
+    gstin: initialAccount?.gstin ?? "",
+    pan: initialAccount?.pan ?? "",
+    openingBalance: initialAccount?.openingBalance ?? "0",
+    openingBalanceType: initialAccount?.openingBalanceType ?? "Dr",
+  });
+
   const isDirty =
-    name.trim() !== "" ||
-    address.trim() !== "" ||
-    mobile.trim() !== "" ||
-    whatsapp.trim() !== "" ||
-    email.trim() !== "" ||
-    aadhar.trim() !== "" ||
-    gstin.trim() !== "" ||
-    pan.trim() !== "" ||
-    openingBalance.trim() !== "0" ||
-    openingBalanceType !== "Dr";
+    name !== base.name ||
+    address !== base.address ||
+    mobile !== base.mobile ||
+    whatsapp !== base.whatsapp ||
+    email !== base.email ||
+    aadhar !== base.aadhar ||
+    gstin !== base.gstin ||
+    pan !== base.pan ||
+    openingBalance !== base.openingBalance ||
+    openingBalanceType !== base.openingBalanceType;
 
   function handleCancelClick() {
     if (!isDirty) {
-      onCancel(); // empty form → close immediately, no dialog
+      onCancel();
       return;
     }
-    setShowConfirm(true); // dirty form → blocking dialog
+    setShowConfirm(true);
   }
 
   function handleConfirmYes() {
     setShowConfirm(false);
-    // YES = "save it" → submit the form. Validation errors (if any)
-    // will show in the form, form stays open.
     formRef.current?.requestSubmit();
   }
 
   function handleConfirmNo() {
     setShowConfirm(false);
     resetForm();
-    onCancel(); // NO = "discard it" → close without saving
+    onCancel();
   }
 
+  // FIX 3: reset goes back to base (initial values in Edit, empty in New),
+  // not always to empty. Otherwise Discard in Edit would blank the form.
   function resetForm() {
-    setName("");
-    setAddress("");
-    setMobile("");
-    setWhatsapp("");
-    setEmail("");
-    setAadhar("");
-    setGstin("");
-    setPan("");
-    setOpeningBalance("0");
-    setOpeningBalanceType("Dr");
+    setName(base.name);
+    setAddress(base.address);
+    setMobile(base.mobile);
+    setWhatsapp(base.whatsapp);
+    setEmail(base.email);
+    setAadhar(base.aadhar);
+    setGstin(base.gstin);
+    setPan(base.pan);
+    setOpeningBalance(base.openingBalance);
+    setOpeningBalanceType(base.openingBalanceType);
     setErrors(emptyErrors);
     setSubmitted(false);
   }
@@ -144,14 +173,21 @@ export default function AccountForm({ onSave, onCancel, onToast, storenumber, on
   }
 
   function handleChange(field: string, value: string) {
-    // Sanitize while typing — same rules as validation.ts expects.
     if (field === "mobile" || field === "whatsapp") value = value.replace(/[^0-9]/g, "");
     if (field === "aadhar") value = value.replace(/[^0-9]/g, "");
-    if (field === "openingBalance") value = value.replace(/[^0-9.]/g, "").replace(/(\..*)\./g, "$1");
+    if (field === "openingBalance") {
+      value = value.replace(/[^0-9.]/g, "").replace(/(\..*)\./g, "$1");
+      if (value.includes(".")) {
+        const [intPart, decPart] = value.split(".");
+        value = intPart + "." + decPart.slice(0, 2); // still cap decimals at 2
+      }
+
+      if (value !== "" && value !== "." && Number(value) > 9999999999.99) {
+        return; // ignore this keystroke / paste, keep previous value
+      }
+    }
     if (field === "pan") value = value.toUpperCase().replace(/[^A-Z0-9]/g, "");
     if (field === "gstin") value = value.toUpperCase().replace(/[^A-Z0-9]/g, "");
-
-    // WhatsApp mirrors Mobile until user edits WhatsApp by hand.
 
     if (field === "name") setName(value);
     if (field === "address") setAddress(value);
@@ -167,7 +203,6 @@ export default function AccountForm({ onSave, onCancel, onToast, storenumber, on
     if (field === "openingBalance") setOpeningBalance(value);
     if (field === "openingBalanceType") setOpeningBalanceType(value);
 
-    // After submit, re-validate all fields from new value. Single setErrors.
     if (submitted) {
       const next = {
         name: field === "name" ? value : name,
@@ -187,7 +222,11 @@ export default function AccountForm({ onSave, onCancel, onToast, storenumber, on
 
   async function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    if (saving) return; // double-submit guard, same as register
+    if (saving) return;
+    if (!isDirty) {
+      onToast("No changes to update", "info");
+      return;
+    }
     const form = e.currentTarget;
     const nextErrors = validateAll({
       name,
@@ -226,10 +265,23 @@ export default function AccountForm({ onSave, onCancel, onToast, storenumber, on
     setSaving(true);
 
     try {
-      const data = await postJson("/accounts", payload);
-      onToast("Account saved successfully", "success");
-      onSave(data);
-      resetForm();
+      isEditing ? await putJson(`/accounts/${initialAccount!.id}`, payload) : await postJson("/accounts", payload);
+      onToast(isEditing ? "Account updated successfully" : "Account saved successfully", "success");
+      if (isEditing) {
+        setBase({
+          name,
+          address,
+          mobile,
+          whatsapp,
+          email,
+          aadhar,
+          gstin,
+          pan,
+          openingBalance,
+          openingBalanceType,
+        });
+      } else resetForm();
+
       setTimeout(() => {
         form.querySelector<HTMLElement>("#acc-name")?.focus();
       }, 0);
@@ -245,7 +297,6 @@ export default function AccountForm({ onSave, onCancel, onToast, storenumber, on
     <div className="account-page">
       <form ref={formRef} onSubmit={handleSubmit} onKeyDown={handleEnterAsTab} noValidate>
         <div className="account-grid">
-          {/* Col 1 — General */}
           <fieldset className="account-column">
             <legend className="account-legend">General Details</legend>
             <Field
@@ -279,7 +330,6 @@ export default function AccountForm({ onSave, onCancel, onToast, storenumber, on
               maxLength={15}
               submitted={submitted}
             />
-
             <Field
               id="acc-pan"
               label="PAN Number"
@@ -290,8 +340,6 @@ export default function AccountForm({ onSave, onCancel, onToast, storenumber, on
               submitted={submitted}
             />
           </fieldset>
-
-          {/* Col 2 — Contact */}
           <fieldset className="account-column">
             <legend className="account-legend">Contact Details</legend>
             <Field
@@ -364,12 +412,15 @@ export default function AccountForm({ onSave, onCancel, onToast, storenumber, on
             </div>
           </fieldset>
         </div>
-
         <div className="actions">
-          <button type="submit" className="primary-button" disabled={saving}>
-            {saving ? "Saving..." : "Save"}
+          <button type="submit" className={`primary-button ${saving ? "is-saving" : ""}`} disabled={saving || !isDirty}>
+            {isEditing ? "Update" : "Save"}
           </button>
-          <button type="button" className="secondary-button" onClick={handleCancelClick} disabled={saving}>
+          <button
+            type="button"
+            className={`secondary-button ${saving ? "is-saving" : ""}`}
+            onClick={handleCancelClick}
+            disabled={saving}>
             Cancel
           </button>
         </div>

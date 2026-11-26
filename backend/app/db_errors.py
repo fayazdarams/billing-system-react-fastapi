@@ -17,7 +17,7 @@ def handle_db_error(e: SQLAlchemyError):
     table = getattr(diag, "table_name", None) if diag else None
     detail = getattr(diag, "message_detail", None) if diag else str(orig)
 
-    print(orig)
+    print (orig);
     
     # LEVEL 1
     if isinstance(orig, pg_errors.InterfaceError):
