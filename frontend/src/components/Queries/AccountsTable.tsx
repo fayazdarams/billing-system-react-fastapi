@@ -95,9 +95,11 @@ export default function AccountsTable({ onTitle, onToast, storenumber, onSession
       colId: "serial",
       width: 40,
       pinned: "left",
+      suppressMovable: true,
+
       sortable: false,
       filter: false,
-      suppressMovable: true,
+
       cellStyle: { textAlign: "right" },
       valueGetter: (p) => {
         if (!p.node || !p.api) return "";
@@ -118,7 +120,9 @@ export default function AccountsTable({ onTitle, onToast, storenumber, onSession
       minWidth: 300,
       pinned: "left",
       suppressMovable: true,
+
       filter: "agTextColumnFilter",
+      resizable: true,
     },
 
     // 3. Address
@@ -126,8 +130,10 @@ export default function AccountsTable({ onTitle, onToast, storenumber, onSession
       field: "address",
       headerName: "Address",
       flex: 1,
-      minWidth: 400,
+      minWidth: 438,
       filter: "agTextColumnFilter",
+      resizable: true,
+      lockPinned: true,
     },
 
     // 4. Cell
@@ -136,6 +142,7 @@ export default function AccountsTable({ onTitle, onToast, storenumber, onSession
       headerName: "Cell",
       width: 120,
       filter: "agTextColumnFilter",
+      lockPinned: true,
     },
 
     // 5. Opening Balance — balance + Dr/Cr in one column
@@ -145,6 +152,7 @@ export default function AccountsTable({ onTitle, onToast, storenumber, onSession
       width: 200,
       cellStyle: { textAlign: "right" },
       filter: "agNumberColumnFilter",
+      lockPinned: true,
       valueFormatter: (p) => `${Number(p.value ?? 0).toFixed(2)} ${p.data?.openingBalanceType ?? ""}`.trim(),
     },
 
@@ -154,9 +162,10 @@ export default function AccountsTable({ onTitle, onToast, storenumber, onSession
       colId: "print",
       width: 45,
       pinned: "right",
+      suppressMovable: true,
       sortable: false,
       filter: false,
-      suppressMovable: true,
+
       cellRenderer: (p: any) => (
         <button type="button" className="row-print-btn" title="Print account" onClick={() => handlePrint(p.data)}>
           <FontAwesomeIcon icon={faPrint} />
