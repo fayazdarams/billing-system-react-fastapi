@@ -51,3 +51,9 @@
 .row-print-btn:hover {
     color: #0b5ed7;
 }
+
+/* Last column also gets a right line, so grid looks closed */
+.accounts-grid .ag-cell.ag-column-last,
+.accounts-grid .ag-header-cell.ag-column-last {
+    border-right: 1px solid #d0d0d0;
+}
