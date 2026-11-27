@@ -3,7 +3,7 @@
 // npm i ag-grid-react ag-grid-community  (if not already installed)
 import { useCallback, useEffect, useRef, useState } from "react";
 import { AgGridReact } from "ag-grid-react";
-import { AllCommunityModule, ModuleRegistry, themeAlpine } from "ag-grid-community";
+import { AllCommunityModule, ModuleRegistry, themeAlpine, themeQuartz } from "ag-grid-community";
 import type { ColDef, GridApi, RowDoubleClickedEvent } from "ag-grid-community";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faPrint } from "@fortawesome/free-solid-svg-icons";
@@ -33,6 +33,29 @@ let savedEditingId: number | null = null;
 
 const DEFAULT_COL_DEF = { sortable: true, resizable: true, filterParams: { debounceMs: 0 } }; // AG Grid default is 500ms - that is the felt lag
 
+const mytheme = themeQuartz.withParams({
+  backgroundColor: "#ffffff",
+  foregroundColor: "#1a1a1a",
+  fontFamily: "serif",
+  headerFontFamily: "Brush Script MT",
+  cellFontFamily: "monospace",
+  spacing: 4,
+  fontSize: 15,
+  wrapperBorder: false,
+  rowBorder: { width: 1, style: "solid", color: "#d0d0d0" },
+  columnBorder: { width: 1, style: "solid", color: "#d0d0d0" },
+  headerBackgroundColor: "#faf8f5",
+  headerFontSize: 15,
+  headerRowBorder: { width: 2, style: "solid", color: "red" },
+  headerColumnBorder: { width: 1, style: "solid", color: "#d0d0d0" },
+  headerColumnBorderHeight: "100%",
+  headerColumnResizeHandleColor: "transparent", //Hide it
+  headerColumnResizeHandleHeight: "25%",
+  headerColumnResizeHandleWidth: "5px",
+  selectedRowBackgroundColor: "rgba(0, 255, 0, 0.1)",
+  oddRowBackgroundColor: "#8881",
+  popupShadow: { radius: 10, spread: 1, color: "red" },
+});
 export default function AccountsTable({ onTitle, onToast, storenumber, onSessionExpired }: Props) {
   const [view, setView] = useState<"list" | "new" | "edit">("list");
   const [rows, setRows] = useState<AccountRow[]>(() => getAccountCache());
@@ -70,7 +93,7 @@ export default function AccountsTable({ onTitle, onToast, storenumber, onSession
       headerName: "#",
       colId: "serial",
       width: 40,
-      //pinned: "left",
+      pinned: "left",
       sortable: false,
       filter: false,
       resizable: false,
@@ -92,7 +115,7 @@ export default function AccountsTable({ onTitle, onToast, storenumber, onSession
       headerName: "Name",
       width: 300,
       minWidth: 250,
-      //  pinned: "left",
+      pinned: "left",
       filter: "agTextColumnFilter",
     },
 
@@ -128,7 +151,7 @@ export default function AccountsTable({ onTitle, onToast, storenumber, onSession
       headerName: "Action",
       colId: "print",
       width: 50,
-      //  pinned: "right",
+      pinned: "right",
       sortable: false,
       filter: false,
       resizable: false,
@@ -377,6 +400,7 @@ export default function AccountsTable({ onTitle, onToast, storenumber, onSession
           }
         }}>
         <AgGridReact<AccountRow>
+          theme={mytheme}
           rowData={rows}
           columnDefs={COLS}
           defaultColDef={DEFAULT_COL_DEF}

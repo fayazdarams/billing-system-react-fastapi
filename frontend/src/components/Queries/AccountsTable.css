@@ -51,30 +51,3 @@
 .row-print-btn:hover {
     color: #0b5ed7;
 }
-
-
-.accounts-grid .ag-header-cell,
-.accounts-grid .ag-cell {
-    border-right: 1px solid #d0d0d0;
-    padding-left: 4px !important;
-    padding-right: 4px !important;
-}
-
-/* Last column also gets a right line, so grid looks closed */
-.accounts-grid .ag-header-cell:last-child,
-.accounts-grid .ag-cell:last-child {
-    border-right: 1px solid #d0d0d0;
-}
-
-
-/* Hide the resize bar, keep the drag area — your vertical line is the visual */
-.accounts-grid .ag-header-cell-resize {
-    width: 10px !important;
-    /* wide grab area, centred on your line */
-    right: -4px !important;
-    /* centre it on the border */
-    opacity: 0 !important;
-    /* invisible, but still there */
-    background: transparent !important;
-    cursor: col-resize !important;
-}
