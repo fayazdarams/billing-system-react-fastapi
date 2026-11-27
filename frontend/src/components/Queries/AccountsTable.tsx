@@ -31,7 +31,7 @@ let savedColumnState: any | null = null; // full state: order + width + sort
 let savedSelectedId: number | null = null; // selected row IS the scroll position now
 let savedEditingId: number | null = null;
 
-const DEFAULT_COL_DEF = { sortable: true, resizable: true, filterParams: { debounceMs: 0 } }; // AG Grid default is 500ms - that is the felt lag
+const DEFAULT_COL_DEF = { sortable: true, resizable: false, filterParams: { debounceMs: 0 } }; // AG Grid default is 500ms - that is the felt lag
 
 const mytheme = themeQuartz.withParams({
   backgroundColor: "#ffffff",
@@ -41,7 +41,7 @@ const mytheme = themeQuartz.withParams({
   cellFontFamily: "monospace",
   spacing: 4,
   fontSize: 15,
-  wrapperBorder: false,
+  wrapperBorder: { width: 1, style: "solid", color: "#d0d0d0" },
   rowBorder: { width: 1, style: "solid", color: "#d0d0d0" },
   columnBorder: { width: 1, style: "solid", color: "#d0d0d0" },
   headerBackgroundColor: "#faf8f5",
@@ -55,6 +55,7 @@ const mytheme = themeQuartz.withParams({
   selectedRowBackgroundColor: "rgba(0, 255, 0, 0.1)",
   oddRowBackgroundColor: "#8881",
   popupShadow: { radius: 10, spread: 1, color: "red" },
+  scrollbarWidth: "thin",
 });
 export default function AccountsTable({ onTitle, onToast, storenumber, onSessionExpired }: Props) {
   const [view, setView] = useState<"list" | "new" | "edit">("list");
@@ -96,7 +97,7 @@ export default function AccountsTable({ onTitle, onToast, storenumber, onSession
       pinned: "left",
       sortable: false,
       filter: false,
-      resizable: false,
+      suppressMovable: true,
       cellStyle: { textAlign: "right" },
       valueGetter: (p) => {
         if (!p.node || !p.api) return "";
@@ -113,9 +114,10 @@ export default function AccountsTable({ onTitle, onToast, storenumber, onSession
     {
       field: "name",
       headerName: "Name",
-      width: 300,
-      minWidth: 250,
+      flex: 1,
+      minWidth: 300,
       pinned: "left",
+      suppressMovable: true,
       filter: "agTextColumnFilter",
     },
 
@@ -124,7 +126,7 @@ export default function AccountsTable({ onTitle, onToast, storenumber, onSession
       field: "address",
       headerName: "Address",
       flex: 1,
-      minWidth: 180,
+      minWidth: 400,
       filter: "agTextColumnFilter",
     },
 
@@ -132,7 +134,7 @@ export default function AccountsTable({ onTitle, onToast, storenumber, onSession
     {
       field: "mobile",
       headerName: "Cell",
-      minWidth: 100,
+      width: 120,
       filter: "agTextColumnFilter",
     },
 
@@ -140,7 +142,7 @@ export default function AccountsTable({ onTitle, onToast, storenumber, onSession
     {
       field: "openingBalance",
       headerName: "Opening Balance",
-      minWidth: 150,
+      width: 200,
       cellStyle: { textAlign: "right" },
       filter: "agNumberColumnFilter",
       valueFormatter: (p) => `${Number(p.value ?? 0).toFixed(2)} ${p.data?.openingBalanceType ?? ""}`.trim(),
@@ -150,11 +152,11 @@ export default function AccountsTable({ onTitle, onToast, storenumber, onSession
     {
       headerName: "Action",
       colId: "print",
-      width: 50,
+      width: 45,
       pinned: "right",
       sortable: false,
       filter: false,
-      resizable: false,
+      suppressMovable: true,
       cellRenderer: (p: any) => (
         <button type="button" className="row-print-btn" title="Print account" onClick={() => handlePrint(p.data)}>
           <FontAwesomeIcon icon={faPrint} />
