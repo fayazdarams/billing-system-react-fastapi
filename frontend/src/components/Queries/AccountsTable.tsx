@@ -27,10 +27,8 @@ type Props = {
 // UI state that survives unmount - same idea as data cache.
 // Form itself unmounts (cost 0), scroll + filter are restored on return.
 let savedFilterModel: Record<string, unknown> | null = null;
-let savedColumnState: any | null = null; // ✅ FIX - full state: order + width + sort, not just sort
-let savedFirstRow = 0;
-let savedScrollTop = 0; // ✅ FIX - vertical scroll, exact pixel
-let savedScrollLeft = 0; // ✅ FIX - horizontal scroll, exact pixel
+let savedColumnState: any | null = null; // full state: order + width + sort
+let savedSelectedId: number | null = null; // selected row IS the scroll position now
 let savedEditingId: number | null = null;
 
 const DEFAULT_COL_DEF = { sortable: true, resizable: true, filterParams: { debounceMs: 0 } }; // AG Grid default is 500ms - that is the felt lag
@@ -43,6 +41,7 @@ export default function AccountsTable({ onTitle, onToast, storenumber, onSession
   const gridApi = useRef<GridApi | null>(null);
   const restored = useRef(false);
   const opened = useRef(false);
+  const gridWrapRef = useRef<HTMLDivElement | null>(null);
 
   const refreshFromCache = useCallback(() => setRows([...getAccountCache()]), []);
 
@@ -71,7 +70,7 @@ export default function AccountsTable({ onTitle, onToast, storenumber, onSession
       headerName: "#",
       colId: "serial",
       width: 40,
-      pinned: "left",
+      //pinned: "left",
       sortable: false,
       filter: false,
       resizable: false,
@@ -91,9 +90,9 @@ export default function AccountsTable({ onTitle, onToast, storenumber, onSession
     {
       field: "name",
       headerName: "Name",
-      flex: 1,
+      width: 300,
       minWidth: 250,
-      pinned: "left",
+      //  pinned: "left",
       filter: "agTextColumnFilter",
     },
 
@@ -110,7 +109,7 @@ export default function AccountsTable({ onTitle, onToast, storenumber, onSession
     {
       field: "mobile",
       headerName: "Cell",
-      width: 100,
+      minWidth: 100,
       filter: "agTextColumnFilter",
     },
 
@@ -118,7 +117,7 @@ export default function AccountsTable({ onTitle, onToast, storenumber, onSession
     {
       field: "openingBalance",
       headerName: "Opening Balance",
-      width: 150,
+      minWidth: 150,
       cellStyle: { textAlign: "right" },
       filter: "agNumberColumnFilter",
       valueFormatter: (p) => `${Number(p.value ?? 0).toFixed(2)} ${p.data?.openingBalanceType ?? ""}`.trim(),
@@ -129,7 +128,7 @@ export default function AccountsTable({ onTitle, onToast, storenumber, onSession
       headerName: "Action",
       colId: "print",
       width: 50,
-      pinned: "right",
+      //  pinned: "right",
       sortable: false,
       filter: false,
       resizable: false,
@@ -164,42 +163,70 @@ export default function AccountsTable({ onTitle, onToast, storenumber, onSession
     if (view === "list") onTitle?.("Accounts");
   }, [view, onTitle]);
 
+  //  Came back to this tab — restore saved selection, refocus grid
+  useEffect(() => {
+    if (view !== "list") return;
+    function onWindowFocus() {
+      if (savedSelectedId == null) return;
+      const node = gridApi.current?.getRowNode(String(savedSelectedId));
+      if (node) {
+        node.setSelected(true);
+        const idx = node.rowIndex;
+        if (idx != null) gridApi.current?.ensureIndexVisible(idx, "middle");
+        gridWrapRef.current?.focus();
+      }
+    }
+    window.addEventListener("focus", onWindowFocus);
+    return () => window.removeEventListener("focus", onWindowFocus);
+  }, [view]);
+
   function saveUiState() {
     if (!gridApi.current) return;
     savedFilterModel = gridApi.current.getFilterModel();
-    savedColumnState = gridApi.current.getColumnState(); // ✅ order + width + sort
-    savedFirstRow = gridApi.current.getFirstDisplayedRowIndex();
-    savedScrollTop = gridApi.current.getVerticalPixelRange()?.top ?? 0; // ✅ vertical
-    savedScrollLeft = gridApi.current.getHorizontalPixelRange()?.left ?? 0; // ✅ horizontal
+    savedColumnState = gridApi.current.getColumnState(); // order + width + sort
+    const selected = gridApi.current.getSelectedRows();
+    if (selected.length > 0) savedSelectedId = selected[0].id;
   }
 
   function restoreUiState(api: GridApi) {
     if (restored.current) return;
     if (savedFilterModel) api.setFilterModel(savedFilterModel);
     if (savedColumnState) {
-      api.applyColumnState({ state: savedColumnState, applyOrder: true }); // ✅ restores order + width + sort
+      api.applyColumnState({ state: savedColumnState, applyOrder: true }); // restores order + width + sort
     }
     // Guard: on first open rows arrive AFTER onGridReady (async sync).
-    // Grid has 0 rows then, so scroll restore is invalid -> warning #88.
+    // Grid has 0 rows then, so restore is invalid -> warning #88.
     // Do NOT mark restored yet - retry on onFirstDataRendered when rows exist.
     const count = api.getDisplayedRowCount();
     if (count === 0) return;
     restored.current = true;
-    setTimeout(() => {
-      // ✅ Vertical — exact pixel, not just ensureIndexVisible
-      (api as any).setVerticalPixelRange?.(savedScrollTop);
-      const bodyViewport = document.querySelector(".ag-body-viewport");
-      if (bodyViewport) bodyViewport.scrollTop = savedScrollTop;
-      // ✅ Horizontal — exact pixel
-      (api as any).setHorizontalPixelRange?.(savedScrollLeft);
-      const hViewport = document.querySelector(".ag-body-horizontal-scroll-viewport");
-      if (hViewport) hViewport.scrollLeft = savedScrollLeft;
-      // Fallback: if pixel was 0 (first open), ensure first saved row is visible
-      if (savedScrollTop === 0 && savedFirstRow > 0) {
-        const idx = Math.min(Math.max(0, savedFirstRow), count - 1);
-        api.ensureIndexVisible(idx, "top");
-      }
-    }, 0);
+
+    //  If no row selected, select first row. If a row is selected, keep it.
+    // Either way, focus the grid so arrows work immediately.
+    let node = savedSelectedId != null ? api.getRowNode(String(savedSelectedId)) : null;
+
+    if (!node) {
+      node = api.getDisplayedRowAtIndex(0); // first row
+      if (node?.data) savedSelectedId = node.data.id;
+    }
+
+    const idx = node?.rowIndex;
+    if (node && idx != null) {
+      node.setSelected(true);
+      setTimeout(() => api.ensureIndexVisible(idx, "middle"), 50);
+      setTimeout(() => api.ensureIndexVisible(idx, "middle"), 200);
+    }
+    setTimeout(() => gridWrapRef.current?.focus(), 200);
+  }
+
+  function handleResetColumns() {
+    savedFilterModel = null;
+    savedColumnState = null;
+    savedSelectedId = null;
+    gridApi.current?.resetColumnState();
+    gridApi.current?.setFilterModel(null);
+    gridApi.current?.deselectAll();
+    refreshFromCache();
   }
 
   function handleNew() {
@@ -209,13 +236,12 @@ export default function AccountsTable({ onTitle, onToast, storenumber, onSession
     setView("new");
   }
 
+  // Single open function — used by double-click AND Enter key.
   // Edit = syncCache() FIRST, then open from cache. Covers update + delete by other user.
-  // Double-click only — single click just selects the row.
-  async function handleRowDoubleClick(e: RowDoubleClickedEvent<AccountRow>) {
-    const id = e.data?.id;
-    if (!id) return;
+  async function openEdit(id: number) {
     saveUiState();
     savedEditingId = id;
+    savedSelectedId = id;
     setLoading(true);
     try {
       await syncAccounts(storenumber);
@@ -233,6 +259,60 @@ export default function AccountsTable({ onTitle, onToast, storenumber, onSession
       if (getApiErrorStatus(err) === 401) onSessionExpired();
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function handleRowDoubleClick(e: RowDoubleClickedEvent<AccountRow>) {
+    const id = e.data?.id;
+    if (!id) return;
+    await openEdit(id);
+  }
+
+  //  Row-only keyboard navigation. No cell focus at all.
+  // Up / Down moves the whole-row highlight. Left / Right do nothing.
+  // Up on first row = nothing. Down on last row = nothing. Stop, no wrap.
+  function moveSelection(delta: -1 | 1) {
+    const api = gridApi.current;
+    if (!api) return;
+    const count = api.getDisplayedRowCount();
+    if (count === 0) return;
+    const selected = api.getSelectedNodes();
+    let currentIdx = selected[0]?.rowIndex ?? -1;
+    if (currentIdx == null || currentIdx < 0) {
+      currentIdx = delta === 1 ? -1 : count; // no selection yet: Down -> first, Up -> last
+    }
+    const nextIdx = Math.min(Math.max(0, currentIdx + delta), count - 1);
+    if (nextIdx === currentIdx) return; // already at first / last row
+    const node = api.getDisplayedRowAtIndex(nextIdx);
+    if (!node) return;
+    node.setSelected(true);
+    api.ensureIndexVisible(nextIdx, "middle");
+  }
+
+  function handleGridKeyDown(e: React.KeyboardEvent) {
+    const target = e.target as HTMLElement | null;
+
+    //  Inside any filter / menu / popup — let it handle the key, not the grid
+    if (
+      target &&
+      (target.tagName === "INPUT" ||
+        target.tagName === "TEXTAREA" ||
+        target.tagName === "SELECT" ||
+        target.closest(".ag-filter, .ag-menu, .ag-popup, .ag-select, .ag-picker-field, .ag-list"))
+    ) {
+      return;
+    }
+
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      moveSelection(1);
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      moveSelection(-1);
+    } else if (e.key === "Enter") {
+      e.preventDefault();
+      const selected = gridApi.current?.getSelectedRows();
+      if (selected?.[0]?.id) openEdit(selected[0].id);
     }
   }
 
@@ -273,11 +353,29 @@ export default function AccountsTable({ onTitle, onToast, storenumber, onSession
           New Account
         </button>
         <button type="button" className="secondary-button" onClick={openList} disabled={loading}>
-          {loading ? "Loading..." : "Refresh"}
+          {"Refresh"}
+        </button>
+        <button type="button" className="secondary-button" onClick={handleResetColumns}>
+          Reset Columns
         </button>
         <span className="accounts-query-count">{rows.length} accounts</span>
       </div>
-      <div className="accounts-grid">
+      <div
+        className="accounts-grid"
+        ref={gridWrapRef}
+        tabIndex={0}
+        onKeyDown={handleGridKeyDown}
+        onBlur={(e) => {
+          if (!e.currentTarget.contains(e.relatedTarget as Node | null)) {
+            //  Save BEFORE wipe — memory survives, highlight does not
+            const selected = gridApi.current?.getSelectedRows();
+            if (selected && selected.length > 0) {
+              savedSelectedId = selected[0].id;
+            }
+            gridApi.current?.deselectAll();
+            //  Do NOT set savedSelectedId = null here — that was the bug
+          }
+        }}>
         <AgGridReact<AccountRow>
           rowData={rows}
           columnDefs={COLS}
@@ -285,26 +383,43 @@ export default function AccountsTable({ onTitle, onToast, storenumber, onSession
           rowHeight={30}
           headerHeight={35}
           getRowId={(p) => String(p.data.id)}
+          suppressCellFocus={true} //  No cell border, no cell-to-cell movement, no header highlight
+          suppressDragLeaveHidesColumns={true} // drag header outside does NOT hide column
+          suppressRowHoverHighlight={true}
           onGridReady={(e) => {
             gridApi.current = e.api;
             restoreUiState(e.api);
           }}
           onFirstDataRendered={(e) => restoreUiState(e.api)}
+          onRowDataUpdated={(e) => restoreUiState(e.api)} // second chance after Cancel refresh
           animateRows={false} // no slide-up animation on filter - rows snap like old system
           onRowDoubleClicked={handleRowDoubleClick}
           onFilterChanged={() => {
             savedFilterModel = gridApi.current?.getFilterModel() ?? null;
-            // ✅ Recalculate serials after filter
+            //  Recalculate serials after filter
             gridApi.current?.refreshCells({ columns: ["serial"], force: true });
           }}
           onSortChanged={(e) => {
-            saveUiState(); // ✅ saves full column state, not just sort
-            // ✅ Recalculate serials after sort
+            saveUiState(); // saves full column state, not just sort
+            //  Recalculate serials after sort
             e.api.refreshCells({ columns: ["serial"], force: true });
+            //  Scroll follows the selected row after sort
+            const selected = e.api.getSelectedNodes();
+            const idx = selected[0]?.rowIndex;
+            if (idx != null) e.api.ensureIndexVisible(idx, "middle");
           }}
-          onColumnMoved={() => saveUiState()} // ✅ column position
-          onColumnResized={() => saveUiState()} // ✅ field size / width
-          rowSelection={{ mode: "singleRow" }}
+          onColumnMoved={() => saveUiState()} // column position
+          onColumnResized={() => saveUiState()} // field size / width
+          onSelectionChanged={(e) => {
+            //  Save on every click / arrow move. Never clear on unmount deselect.
+            const selected = e.api.getSelectedRows();
+            if (selected.length > 0) savedSelectedId = selected[0].id;
+          }}
+          rowSelection={{
+            mode: "singleRow",
+            checkboxes: false, // no checkbox in rows
+            enableClickSelection: true, // click row = select
+          }}
         />
       </div>
     </div>

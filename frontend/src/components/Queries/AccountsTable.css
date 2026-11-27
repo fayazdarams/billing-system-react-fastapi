@@ -27,6 +27,10 @@
     width: 100%;
 }
 
+.accounts-grid:focus {
+    outline: none;
+}
+
 .accounts-grid .ag-root-wrapper {
     border-radius: 6px;
 }
@@ -60,4 +64,17 @@
 .accounts-grid .ag-header-cell:last-child,
 .accounts-grid .ag-cell:last-child {
     border-right: 1px solid #d0d0d0;
+}
+
+
+/* Hide the resize bar, keep the drag area — your vertical line is the visual */
+.accounts-grid .ag-header-cell-resize {
+    width: 10px !important;
+    /* wide grab area, centred on your line */
+    right: -4px !important;
+    /* centre it on the border */
+    opacity: 0 !important;
+    /* invisible, but still there */
+    background: transparent !important;
+    cursor: col-resize !important;
 }
