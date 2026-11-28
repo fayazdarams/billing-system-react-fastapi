@@ -423,6 +423,7 @@ export default function AccountsTable({ onTitle, onToast, storenumber, onSession
           suppressCellFocus={true} //  No cell border, no cell-to-cell movement, no header highlight
           suppressDragLeaveHidesColumns={true} // drag header outside does NOT hide column
           suppressRowHoverHighlight={true}
+          suppressColumnMoveAnimation={true}
           onGridReady={(e) => {
             gridApi.current = e.api;
             restoreUiState(e.api);
