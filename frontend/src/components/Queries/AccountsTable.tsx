@@ -1,7 +1,7 @@
 // frontend/src/components/Tables/AccountsTable.tsx (replace existing file)
 // No Bootstrap. AG Grid client-side filtering on cache. No Tailwind.
 // npm i ag-grid-react ag-grid-community  (if not already installed)
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, useMemo } from "react";
 import { AgGridReact } from "ag-grid-react";
 import { AllCommunityModule, ModuleRegistry, themeAlpine, themeQuartz } from "ag-grid-community";
 import type { ColDef, GridApi, RowDoubleClickedEvent } from "ag-grid-community";
@@ -57,6 +57,24 @@ const mytheme = themeQuartz.withParams({
   popupShadow: { radius: 10, spread: 1, color: "red" },
   scrollbarWidth: "thin",
 });
+
+function handlePrint(row: AccountRow) {
+  const w = window.open("", "_blank");
+  if (!w) return;
+  w.document.write(`
+    <html><head><title>Account - ${row.name}</title></head><body>
+      <h2>${row.name}</h2>
+      <p>${row.address}</p>
+      <p>Mobile: ${row.mobile} | WhatsApp: ${row.whatsapp}</p>
+      <p>Email: ${row.email ?? ""} | GSTIN: ${row.gstin ?? ""} | PAN: ${row.pan ?? ""}</p>
+      <p>Opening: ${row.openingBalance} ${row.openingBalanceType}</p>
+    </body></html>
+  `);
+  w.document.close();
+  w.focus();
+  w.print();
+}
+
 export default function AccountsTable({ onTitle, onToast, storenumber, onSessionExpired }: Props) {
   const [view, setView] = useState<"list" | "new" | "edit">("list");
   const [rows, setRows] = useState<AccountRow[]>(() => getAccountCache());
@@ -69,110 +87,94 @@ export default function AccountsTable({ onTitle, onToast, storenumber, onSession
 
   const refreshFromCache = useCallback(() => setRows([...getAccountCache()]), []);
 
-  // Print — from cache, no fetch, no sync. Single click selects row + prints.
-  function handlePrint(row: AccountRow) {
-    const w = window.open("", "_blank");
-    if (!w) return;
-    w.document.write(`
-      <html><head><title>Account - ${row.name}</title></head><body>
-        <h2>${row.name}</h2>
-        <p>${row.address}</p>
-        <p>Mobile: ${row.mobile} | WhatsApp: ${row.whatsapp}</p>
-        <p>Email: ${row.email ?? ""} | GSTIN: ${row.gstin ?? ""} | PAN: ${row.pan ?? ""}</p>
-        <p>Opening: ${row.openingBalance} ${row.openingBalanceType}</p>
-      </body></html>
-    `);
-    w.document.close();
-    w.focus();
-    w.print();
-  }
-
   // COLS inside component — Print column needs handlePrint.
-  const COLS: ColDef<AccountRow>[] = [
-    // 1. Serial — display position only, never sorts, recalculates on sort/filter
-    {
-      headerName: "#",
-      colId: "serial",
-      width: 40,
-      pinned: "left",
-      suppressMovable: true,
+  const COLS = useMemo<ColDef<AccountRow>[]>(
+    () => [
+      // 1. Serial — display position only, never sorts, recalculates on sort/filter
+      {
+        headerName: "#",
+        colId: "serial",
+        width: 40,
+        pinned: "left",
+        suppressMovable: true,
 
-      sortable: false,
-      filter: false,
+        sortable: false,
+        filter: false,
 
-      cellStyle: { textAlign: "right" },
-      valueGetter: (p) => {
-        if (!p.node || !p.api) return "";
-        let idx = -1;
-        // Walks only displayed rows, after sort + filter, in displayed order
-        p.api.forEachNodeAfterFilterAndSort((node, i) => {
-          if (node === p.node) idx = i;
-        });
-        return idx + 1;
+        cellStyle: { textAlign: "right" },
+        valueGetter: (p) => {
+          if (!p.node || !p.api) return "";
+          let idx = -1;
+          // Walks only displayed rows, after sort + filter, in displayed order
+          p.api.forEachNodeAfterFilterAndSort((node, i) => {
+            if (node === p.node) idx = i;
+          });
+          return idx + 1;
+        },
       },
-    },
 
-    // 2. Name
-    {
-      field: "name",
-      headerName: "Name",
-      flex: 1,
-      minWidth: 300,
-      pinned: "left",
-      suppressMovable: true,
+      // 2. Name
+      {
+        field: "name",
+        headerName: "Name",
+        flex: 1,
+        minWidth: 300,
+        pinned: "left",
+        suppressMovable: true,
 
-      filter: "agTextColumnFilter",
-      resizable: true,
-    },
+        filter: "agTextColumnFilter",
+        resizable: true,
+      },
 
-    // 3. Address
-    {
-      field: "address",
-      headerName: "Address",
-      flex: 1,
-      minWidth: 438,
-      filter: "agTextColumnFilter",
-      resizable: true,
-      lockPinned: true,
-    },
+      // 3. Address
+      {
+        field: "address",
+        headerName: "Address",
+        flex: 1,
+        minWidth: 438,
+        filter: "agTextColumnFilter",
+        resizable: true,
+        lockPinned: true,
+      },
 
-    // 4. Cell
-    {
-      field: "mobile",
-      headerName: "Cell",
-      width: 120,
-      filter: "agTextColumnFilter",
-      lockPinned: true,
-    },
+      // 4. Cell
+      {
+        field: "mobile",
+        headerName: "Cell",
+        width: 120,
+        filter: "agTextColumnFilter",
+        lockPinned: true,
+      },
 
-    // 5. Opening Balance — balance + Dr/Cr in one column
-    {
-      field: "openingBalance",
-      headerName: "Opening Balance",
-      width: 200,
-      cellStyle: { textAlign: "right" },
-      filter: "agNumberColumnFilter",
-      lockPinned: true,
-      valueFormatter: (p) => `${Number(p.value ?? 0).toFixed(2)} ${p.data?.openingBalanceType ?? ""}`.trim(),
-    },
+      // 5. Opening Balance — balance + Dr/Cr in one column
+      {
+        field: "openingBalance",
+        headerName: "Opening Balance",
+        width: 200,
+        cellStyle: { textAlign: "right" },
+        filter: "agNumberColumnFilter",
+        lockPinned: true,
+        valueFormatter: (p) => `${Number(p.value ?? 0).toFixed(2)} ${p.data?.openingBalanceType ?? ""}`.trim(),
+      },
 
-    // 6. Print — last column
-    {
-      headerName: "Action",
-      colId: "print",
-      width: 45,
-      pinned: "right",
-      suppressMovable: true,
-      sortable: false,
-      filter: false,
-
-      cellRenderer: (p: any) => (
-        <button type="button" className="row-print-btn" title="Print account" onClick={() => handlePrint(p.data)}>
-          <FontAwesomeIcon icon={faPrint} />
-        </button>
-      ),
-    },
-  ];
+      // 6. Print — last column
+      {
+        headerName: "Action",
+        colId: "print",
+        width: 45,
+        pinned: "right",
+        suppressMovable: true,
+        sortable: false,
+        filter: false,
+        cellRenderer: (p: any) => (
+          <button type="button" className="row-print-btn" title="Print account" onClick={() => handlePrint(p.data)}>
+            <FontAwesomeIcon icon={faPrint} />
+          </button>
+        ),
+      },
+    ],
+    [],
+  );
 
   // Open list = syncCache() - seed once, delta afterwards. No GET /accounts every time.
   const openList = useCallback(async () => {
